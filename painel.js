@@ -369,7 +369,7 @@ function secCampo() {
     return bloco(`Pastos · ${f.codigo}`, 'onde cada lote está agora', `${mapa}${linhasLista(lista.map((p) => {
       const st = situacaoPasto(p);
       return {
-        t: `${esc(p.nome)}${p.modulo ? ` <small>${esc(p.modulo)}</small>` : ''}`,
+        t: `${esc(nomeP(p))}${p.modulo ? ` <small>${esc(p.modulo)}</small>` : ''}`,
         s: esc([p.ha ? `${F.dec(p.ha, 2)} ha` : null, p.capim, st.ocupado ? `${st.lotes.join(', ')}${st.junto ? ' (usa junto com outro pasto)' : ''}` : 'sem gado'].filter(Boolean).join(' · ')),
         v: st.ocupado ? `${esc(F.int(st.dias))} dias<small>ocupado desde ${esc(dtc(st.desde))}</small>` : st.descanso != null ? `${esc(F.int(st.descanso))} dias<small>de descanso</small>` : '<small>sem registro</small>',
       };
@@ -393,6 +393,15 @@ function situacaoPasto(p) {
   }
   const saidas = todas.filter((o) => o.sai && deste(o)).map((o) => o.sai).sort();
   return { ocupado: false, descanso: saidas.length ? diasEntre(saidas[saidas.length - 1], hojeISO()) : null };
+}
+const nomeP = (p) => (p.apelido ? `${p.nome} · ${p.apelido}` : p.nome);
+// rótulo que cabe no pasto: nome completo, só o apelido ou só o número (o mapa grande, com zoom, mostra tudo)
+function rotuloPasto(p, larg) {
+  const cabe = (t) => t.length * 5.6 <= larg;
+  if (cabe(nomeP(p))) return { t: nomeP(p), cheio: true };
+  if (cabe(p.nome)) return { t: p.nome, cheio: true };
+  if (p.apelido && cabe(p.apelido)) return { t: p.apelido, cheio: false };
+  return { t: (p.nome.match(/\d+/) || [p.nome])[0], cheio: false };
 }
 const merc = (lat) => (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
 const semAcento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -457,23 +466,25 @@ function mapaFazenda(fid, grande, zoom) {
   let formas = '', textos = '', pinos = '';
   for (const p of pastos) {
     const st = situacaoPasto(p);
-    const tip = `${p.nome} · ${F.dec(p.ha, 2)} ha${p.capim ? ` · ${p.capim}` : ''} · ` + (st.ocupado ? `${st.lotes.join(', ')} há ${st.dias} dias` : st.descanso != null ? `descanso há ${st.descanso} dias` : 'sem gado');
+    const tip = `${nomeP(p)} · ${F.dec(p.ha, 2)} ha${p.capim ? ` · ${p.capim}` : ''} · ` + (st.ocupado ? `${st.lotes.join(', ')} há ${st.dias} dias` : st.descanso != null ? `descanso há ${st.descanso} dias` : 'sem gado');
     formas += `<path d="${caminho(p.contorno.coordinates[0])}" class="${fundo ? 'pasto-foto' : st.ocupado ? 'pasto-oc' : 'pasto-livre'}" data-tip="${esc(tip)}"/>`;
     const [x, y] = centro(p.contorno.coordinates[0]);
+    const qx = p.contorno.coordinates[0].map((c) => P(c)[0]);
+    const rot = rotuloPasto(p, Math.max(...qx) - Math.min(...qx));
     const ocs = todas.filter((o) => !o.sai && (o.pasto === p.id || (o.tambem || []).includes(p.id)));
     if (ocs.length) {
       ocs.forEach((o, i) => {
         const lote = S.idx.lotes.get(o.lote);
         const tipo = tipoLote(lote);
-        const rot = o.cab != null ? `${o.cab}${/junto com/i.test(o.obs || '') ? '+' : ''}` : '?';
+        const cab = o.cab != null ? `${o.cab}${/junto com/i.test(o.obs || '') ? '+' : ''}` : '?';
         const dx = (i - (ocs.length - 1) / 2) * 26;
-        pinos += pinoSvg(x + dx, y - 3, tipo, (a, b) => vacaSvg(a, b, tipo === 'paridas'), rot,
-          `${lote ? lote.nome : 'lote'} · ${o.cab != null ? `${o.cab} cabeças${rot.endsWith('+') ? ' e mais gado junto' : ''}` : 'cabeças a confirmar'} · desde ${dtc(o.ent)}`);
+        pinos += pinoSvg(x + dx, y - 3, tipo, (a, b) => vacaSvg(a, b, tipo === 'paridas'), cab,
+          `${lote ? lote.nome : 'lote'} · ${o.cab != null ? `${o.cab} cabeças${cab.endsWith('+') ? ' e mais gado junto' : ''}` : 'cabeças a confirmar'} · desde ${dtc(o.ent)}`);
       });
-      textos += `<text x="${x.toFixed(1)}" y="${(y + 7).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(p.nome)}</text>`;
+      textos += `<text x="${x.toFixed(1)}" y="${(y + 7).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(rot.t)}</text>`;
     } else {
-      textos += `<text x="${x.toFixed(1)}" y="${(y + 2).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(p.nome)}</text>`
-        + `<text x="${x.toFixed(1)}" y="${(y + 10).toFixed(1)}" class="mapa-s" text-anchor="middle">${esc(st.descanso != null ? `descanso ${st.descanso} d` : 'sem gado')}</text>`;
+      textos += `<text x="${x.toFixed(1)}" y="${(y + (rot.cheio ? 2 : 4)).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(rot.t)}</text>`
+        + (rot.cheio ? `<text x="${x.toFixed(1)}" y="${(y + 10).toFixed(1)}" class="mapa-s" text-anchor="middle">${esc(st.descanso != null ? `descanso ${st.descanso} d` : 'sem gado')}</text>` : '');
     }
   }
   for (const e of elems) {
