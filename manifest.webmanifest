@@ -1,0 +1,17 @@
+{
+  "name": "Curral Digital",
+  "short_name": "Curral",
+  "description": "Ficha dos animais e manejos das fazendas MD e 3C, funcionando sem internet.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f5ec",
+  "theme_color": "#2d6a4f",
+  "icons": [
+    { "src": "icones/icone-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icones/icone-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
