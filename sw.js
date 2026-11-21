@@ -1,8 +1,8 @@
 // Curral Digital — guarda o app no celular para abrir sem internet.
 // Os dados do rebanho ficam à parte (no armazenamento do app); aqui só ficam as telas.
 // A cada versão nova, mude VERSAO: o celular baixa tudo de novo na próxima vez que tiver internet.
-const VERSAO = 'curral-campo-2026-11-21a';
-const ARQUIVOS = ['./', 'index.html', 'app.css', 'app.js', 'manifest.webmanifest',
+const VERSAO = 'curral-campo-2026-11-21b';
+const ARQUIVOS = ['./', 'index.html', 'app.css', 'painel.js', 'app.js', 'manifest.webmanifest',
   'icones/icone-180.png', 'icones/icone-192.png', 'icones/icone-512.png'];
 
 self.addEventListener('install', (e) => {

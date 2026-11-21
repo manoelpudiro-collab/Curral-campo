@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '1.0 · 21/11/2026';
+const VERSAO_APP = '1.1 · 21/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -74,6 +74,7 @@ const NOME_EVENTO = {
 
 // ícones (traço simples)
 const I = {
+  inicio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>',
   busca: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
   listas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2"/><circle cx="3.5" cy="12" r="1.2"/><circle cx="3.5" cy="18" r="1.2"/></svg>',
   agenda: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
@@ -263,7 +264,7 @@ function topo() {
 function abas(atual) {
   const a = (id, rot, ic) => `<button class="aba" data-ir="#${id}" ${atual === id ? 'aria-current="page"' : ''}>${ic}<span>${rot}</span></button>`;
   return `<nav class="abas"><div class="abas-dentro">
-    ${a('buscar', 'Buscar', I.busca)}${a('listas', 'Listas', I.listas)}${a('agenda', 'Agenda', I.agenda)}${a('mais', 'Mais', I.mais)}
+    ${a('painel', 'Início', I.inicio)}${a('buscar', 'Buscar', I.busca)}${a('listas', 'Listas', I.listas)}${a('agenda', 'Agenda', I.agenda)}${a('mais', 'Mais', I.mais)}
   </div></nav>`;
 }
 
@@ -580,7 +581,7 @@ function janelaSair() {
 function rota() {
   const h = location.hash.replace(/^#/, '');
   const [nome, arg] = h.split('/');
-  return { nome: nome || 'buscar', arg };
+  return { nome: nome || 'painel', arg };
 }
 
 function desenharTopo() {
@@ -597,13 +598,15 @@ function desenhar(mensagem) {
     return;
   }
   const r = rota();
-  const telas = { buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais };
+  const telas = { painel: () => telaPainel(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais };
   let abaGuardada = null;
   try { abaGuardada = sessionStorage.getItem('cd.aba'); } catch { /* nada */ }
-  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' ? 'listas' : r.nome;
+  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' ? 'listas' : telas[r.nome] ? r.nome : 'painel';
   if (r.nome !== 'animal') { try { sessionStorage.setItem('cd.aba', aba); } catch { /* nada */ } }
-  app.innerHTML = topo() + (telas[r.nome] || telaBuscar)() + abas(aba);
+  app.innerHTML = topo() + (telas[r.nome] || telas.painel)() + abas(aba);
   for (const c of app.querySelectorAll('.cartao[data-cor]')) c.style.setProperty('--cor', LISTAS[c.dataset.cor].cor);
+  const secAtual = app.querySelector('.secoes [aria-pressed="true"]');
+  if (secAtual) secAtual.parentElement.scrollLeft = Math.max(0, secAtual.offsetLeft - 16);
   if (r.nome !== 'buscar') window.scrollTo(0, 0);
 }
 
@@ -643,7 +646,7 @@ async function fazerEntrar() {
     S.usuario = { nome: j.nome, papel: j.papel };
     gravar(CH.usuario, JSON.stringify(S.usuario));
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
-    location.hash = '#buscar';
+    location.hash = '#painel';
     S.buscando = false;
     desenhar();
     await atualizar();
@@ -669,7 +672,7 @@ document.addEventListener('click', (ev) => {
   const acao = b.dataset.acao;
   if (acao === 'entrar') fazerEntrar();
   else if (acao === 'atualizar') atualizar(true);
-  else if (acao === 'voltar') { if (history.length > 1) history.back(); else location.hash = '#buscar'; }
+  else if (acao === 'voltar') { if (history.length > 1) history.back(); else location.hash = '#painel'; }
   else if (acao === 'fazenda') {
     S.fazenda = b.dataset.valor; gravar(CH.fazenda, S.fazenda);
     if (rota().nome === 'buscar') {
