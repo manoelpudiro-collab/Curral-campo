@@ -248,3 +248,10 @@ button { font: inherit; color: inherit; }
   font-weight: 500; box-shadow: 0 6px 20px rgba(0, 0, 0, .22); pointer-events: none; }
 @media (max-width: 360px) { .kpis { grid-template-columns: 1fr; } }
 .bloco .lista { box-shadow: none; }
+/* mapa dos pastos */
+.mapa .pasto-oc { fill: var(--c5); fill-opacity: .82; stroke: var(--cartao); stroke-width: 1.6; }
+.mapa .pasto-livre { fill: var(--c2); fill-opacity: .42; stroke: var(--cartao); stroke-width: 1.6; }
+.mapa .elem { fill: var(--c8); stroke: var(--cartao); stroke-width: .8; }
+.mapa text { pointer-events: none; fill: #1e2a1f; paint-order: stroke; stroke: rgba(255, 255, 255, .8); stroke-width: 2.5px; stroke-linejoin: round; }
+.mapa .mapa-n { font-size: 9.5px; font-weight: 700; }
+.mapa .mapa-s { font-size: 8px; }

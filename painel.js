@@ -362,17 +362,75 @@ function secCampo() {
     t: esc(m.texto), s: esc(`${m.autor || 'sem nome'} · ${dataHora(m.recebido)}`),
     v: `<span class="selo ${m.status === 'processado' ? 's-ativo' : m.status === 'erro' || m.status === 'ambigua' ? 's-vazia' : 's-solteira'}">${esc(NOME_MSG[m.status] || m.status)}</span>`,
   })), 'Nenhuma mensagem ainda.');
-  const pastos = S.dados.pastos && S.dados.pastos.length ? bloco('Pastos', 'onde cada lote está', linhasLista(S.dados.pastos.map((p) => {
-    const oc = (S.dados.ocupacoes || []).filter((o) => o.pasto === p.id && !o.sai);
-    const lotes = oc.map((o) => (S.idx.lotes.get(o.lote) || {}).nome).filter(Boolean);
-    const desde = oc.length ? oc.map((o) => o.ent).sort()[0] : null;
-    return { t: `${esc(p.nome)} <small>${esc(faz(p.f).codigo)}</small>`, s: esc([p.ha ? `${F.dec(p.ha)} ha` : null, p.capim, lotes.length ? `lote ${lotes.join(', ')}` : 'vazio'].filter(Boolean).join(' · ')),
-      v: desde ? `${esc(F.int(diasEntre(desde, hojeISO())))} dias<small>ocupado</small>` : '' };
-  }), '')) : '';
+  const comPasto = S.dados.fazendas.filter((f) => [...S.idx.pastos.values()].some((p) => p.f === f.id));
+  const pastos = comPasto.map((f) => {
+    const lista = [...S.idx.pastos.values()].filter((p) => p.f === f.id).sort((a, b) => a.id - b.id);
+    const mapa = mapaFazenda(f.id);
+    return bloco(`Pastos · ${f.codigo}`, 'onde cada lote está agora', `${mapa}${linhasLista(lista.map((p) => {
+      const st = situacaoPasto(p);
+      return {
+        t: `${esc(p.nome)}${p.modulo ? ` <small>${esc(p.modulo)}</small>` : ''}`,
+        s: esc([p.ha ? `${F.dec(p.ha, 2)} ha` : null, p.capim, st.ocupado ? `${st.lotes.join(', ')}${st.junto ? ' (usa junto com outro pasto)' : ''}` : 'sem gado'].filter(Boolean).join(' · ')),
+        v: st.ocupado ? `${esc(F.int(st.dias))} dias<small>ocupado desde ${esc(dtc(st.desde))}</small>` : st.descanso != null ? `${esc(F.int(st.descanso))} dias<small>de descanso</small>` : '<small>sem registro</small>',
+      };
+    }), '')}`);
+  }).join('');
   return `<div class="kpis">${S.dados.fazendas.map((f) => kpi(`Chuva · ${f.codigo} · 12 meses`, F.mm(total(f.codigo)), 'somando os registros do pluviômetro')).join('')}</div>
-    ${bloco('Chuva por mês', 'milímetros, últimos 12 meses', `${legenda(S.dados.fazendas.map((f) => ({ rot: f.codigo, c: corP('fazenda', f.codigo) })))}${graf}`)}
     ${pastos}
+    ${bloco('Chuva por mês', 'milímetros, últimos 12 meses', `${legenda(S.dados.fazendas.map((f) => ({ rot: f.codigo, c: corP('fazenda', f.codigo) })))}${graf}`)}
     ${bloco('Mensagens do bot', 'o que chegou por último', msgs)}`;
+}
+
+// ------------------------------------------------------------------ mapa dos pastos
+function situacaoPasto(p) {
+  const todas = (S.dados.mapa && S.dados.mapa.ocupacoes) || S.dados.ocupacoes || [];
+  const deste = (o) => o.pasto === p.id || (o.tambem || []).includes(p.id);
+  const ab = todas.filter((o) => !o.sai && deste(o));
+  if (ab.length) {
+    const desde = ab.map((o) => o.ent).sort()[0];
+    return { ocupado: true, desde, dias: diasEntre(desde, hojeISO()), junto: ab.some((o) => o.tambem && o.tambem.length),
+      lotes: ab.map((o) => (S.idx.lotes.get(o.lote) || {}).nome).filter(Boolean) };
+  }
+  const saidas = todas.filter((o) => o.sai && deste(o)).map((o) => o.sai).sort();
+  return { ocupado: false, descanso: saidas.length ? diasEntre(saidas[saidas.length - 1], hojeISO()) : null };
+}
+function mapaFazenda(fid) {
+  const pastos = [...S.idx.pastos.values()].filter((p) => p.f === fid && p.contorno && p.contorno.coordinates);
+  if (!pastos.length) return '';
+  const elems = ((S.dados.mapa && S.dados.mapa.elementos) || []).filter((e) => e.f === fid && e.geo && e.geo.coordinates);
+  const pts = [...pastos.map((p) => p.contorno), ...elems.map((e) => e.geo)].flatMap((g) => g.coordinates[0]);
+  const lat0 = pts.reduce((s, c) => s + c[1], 0) / pts.length;
+  const kx = Math.cos((lat0 * Math.PI) / 180);
+  const xs = pts.map((c) => c[0] * kx), ys = pts.map((c) => -c[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const W = 320, pad = 4, k = (W - 2 * pad) / (maxX - minX);
+  const H = Math.round((maxY - minY) * k + 2 * pad);
+  const P = (c) => [pad + (c[0] * kx - minX) * k, pad + (-c[1] - minY) * k];
+  const caminho = (g) => `M${g.coordinates[0].map((c) => P(c).map((v) => v.toFixed(1)).join(',')).join('L')}Z`;
+  const centro = (g) => {
+    const q = g.coordinates[0].map(P);
+    let a = 0, cx = 0, cy = 0;
+    for (let i = 0; i < q.length - 1; i++) {
+      const f = q[i][0] * q[i + 1][1] - q[i + 1][0] * q[i][1];
+      a += f; cx += (q[i][0] + q[i + 1][0]) * f; cy += (q[i][1] + q[i + 1][1]) * f;
+    }
+    return a ? [cx / (3 * a), cy / (3 * a)] : q[0];
+  };
+  const curto = (t) => (t.length > 16 ? `${t.slice(0, 15)}…` : t);
+  let formas = '', textos = '';
+  for (const p of pastos) {
+    const st = situacaoPasto(p);
+    const tip = `${p.nome} · ${F.dec(p.ha, 2)} ha${p.capim ? ` · ${p.capim}` : ''} · ` + (st.ocupado ? `${st.lotes.join(', ')} há ${st.dias} dias` : st.descanso != null ? `descanso há ${st.descanso} dias` : 'sem gado');
+    formas += `<path d="${caminho(p.contorno)}" class="${st.ocupado ? 'pasto-oc' : 'pasto-livre'}" data-tip="${esc(tip)}"/>`;
+    const [x, y] = centro(p.contorno);
+    const sub = st.ocupado ? `${st.dias} d · ${curto(st.lotes.join(', '))}` : st.descanso != null ? `descanso ${st.descanso} d` : 'sem gado';
+    textos += `<text x="${x.toFixed(1)}" y="${(y - 1).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(p.nome)}</text>`
+      + `<text x="${x.toFixed(1)}" y="${(y + 9).toFixed(1)}" class="mapa-s" text-anchor="middle">${esc(sub)}</text>`;
+  }
+  for (const e of elems) formas += `<path d="${caminho(e.geo)}" class="elem" data-tip="${esc(e.nome + (e.obs ? `: ${e.obs}` : ''))}"/>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="grafico mapa" role="img" aria-label="Mapa dos pastos">${formas}${textos}</svg>
+    <ul class="legenda"><li><i class="bola b5"></i>Com gado</li><li><i class="bola b2"></i>Em descanso</li><li><i class="bola b8"></i>Curral e praça</li></ul>
+    <p class="nota">Toque num pasto para ver os detalhes.</p>`;
 }
 
 function definicoes() {

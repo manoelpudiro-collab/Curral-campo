@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '1.1 · 21/11/2026';
+const VERSAO_APP = '1.2 · 21/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -106,7 +106,7 @@ function indexar(c) {
   const porId = new Map(), filhos = new Map(), eventos = new Map(), aplic = new Map();
   const faz = new Map(c.fazendas.map((f) => [f.id, f]));
   const lotes = new Map(c.lotes.map((l) => [l.id, l]));
-  const pastos = new Map(c.pastos.map((p) => [p.id, p]));
+  const pastos = new Map(((c.mapa && c.mapa.pastos) || c.pastos || []).map((p) => [p.id, p]));
   const prot = new Map(c.protocolos.map((p) => [p.id, p]));
   const manejos = new Map(c.manejos.map((m) => [m.id, m]));
   for (const a of c.animais) { porId.set(a.id, a); a._k = chaveNum(a.n); a._kz = semZeros(a._k); a._b = a.b ? semZeros(chaveNum(a.b)) : ''; }
@@ -119,7 +119,7 @@ function indexar(c) {
   }
   const partos = new Map((c.partos || []).map((p) => [p.n, p]));
   const pastoDoLote = new Map();
-  for (const o of c.ocupacoes || []) if (!o.sai && o.lote) pastoDoLote.set(o.lote, o);
+  for (const o of (c.mapa ? c.mapa.ocupacoes : c.ocupacoes) || []) if (!o.sai && o.lote) pastoDoLote.set(o.lote, o);
   return { porId, filhos, eventos, aplic, faz, lotes, pastos, prot, manejos, partos, pastoDoLote };
 }
 
@@ -418,8 +418,9 @@ function blocoLoteEPasto(a) {
     for (const l of ls) {
       linhas.push(['Lote', l.nome]);
       const oc = S.idx.pastoDoLote.get(l.id);
-      const pasto = oc ? S.idx.pastos.get(oc.pasto) : l.pasto ? S.idx.pastos.get(l.pasto) : null;
-      if (pasto) linhas.push(['Pasto', `${pasto.nome}${oc ? ` · desde ${dtc(oc.ent)} (${diasEntre(oc.ent, hojeISO())} dias)` : ''}`]);
+      const ids = oc ? [oc.pasto, ...(oc.tambem || [])] : l.pasto ? [l.pasto] : [];
+      const nomes = ids.map((id) => (S.idx.pastos.get(id) || {}).nome).filter(Boolean);
+      if (nomes.length) linhas.push([nomes.length > 1 ? 'Pastos' : 'Pasto', `${nomes.join(' e ')}${oc ? ` · desde ${dtc(oc.ent)} (${diasEntre(oc.ent, hojeISO())} dias)` : ''}`]);
     }
   } else if (a.lote) linhas.push(['Lote', a.lote]);
   return `<div class="bloco"><h2 class="h2">${I.pasto}Lote e pasto</h2>
