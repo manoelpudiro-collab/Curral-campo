@@ -394,21 +394,58 @@ function situacaoPasto(p) {
   const saidas = todas.filter((o) => o.sai && deste(o)).map((o) => o.sai).sort();
   return { ocupado: false, descanso: saidas.length ? diasEntre(saidas[saidas.length - 1], hojeISO()) : null };
 }
-function mapaFazenda(fid) {
+const merc = (lat) => (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+const semAcento = (t) => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+function tipoLote(l) {
+  const n = semAcento(l && l.nome);
+  if (/abate/.test(n)) return 'abate';
+  if (/parid/.test(n)) return 'paridas';
+  if (/prenh/.test(n)) return 'prenhas';
+  if (/bezerr/.test(n)) return 'bezerros';
+  if (/novilh/.test(n) || (l && l.cat === 'novilha')) return 'novilhas';
+  return 'gado';
+}
+// vaca de lado (desenho próprio), com bezerro quando o lote é de paridas
+const vacaSvg = (x, y, bezerro) => `<g class="vaca" transform="translate(${(x + 0.6).toFixed(2)},${(y - 0.6).toFixed(2)}) scale(0.19)">
+  <rect x="-22" y="-8" width="36" height="18" rx="8"/><polygon points="10,-6 24,-12 28,-2 16,4"/><polygon points="22,-12 26,-18 25,-10"/>
+  <rect x="-18" y="8" width="4" height="12"/><rect x="-10" y="8" width="4" height="12"/><rect x="4" y="8" width="4" height="12"/><rect x="10" y="8" width="4" height="12"/>
+  <polygon points="-23,-7 -21,-5 -26,9 -28,8"/>
+  ${bezerro ? '<rect x="-31" y="2" width="16" height="10" rx="4" class="bez"/><rect x="-29" y="11" width="3" height="8"/><rect x="-19" y="11" width="3" height="8"/>' : ''}</g>`;
+const cochoSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.2)"><rect x="-30" y="-9" width="60" height="24" rx="4"/><line x1="-27" y1="15" x2="-33" y2="27"/><line x1="27" y1="15" x2="33" y2="27"/></g>`;
+const curralSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.2)"><line x1="-30" y1="-9" x2="30" y2="-9"/><line x1="-30" y1="9" x2="30" y2="9"/><line x1="-24" y1="-21" x2="-24" y2="21"/><line x1="0" y1="-21" x2="0" y2="21"/><line x1="24" y1="-21" x2="24" y2="21"/></g>`;
+function pinoSvg(x, y, cls, miolo, rotulo, tip) {
+  const R = 9, cy = y - R - 5, lb = rotulo ? Math.max(9, 4.2 * String(rotulo).length + 4) : 0;
+  return `<g class="pino pc-${cls}" data-tip="${esc(tip)}">
+    <path d="M${(x - 4.6).toFixed(2)},${(cy + R - 1.6).toFixed(2)}L${x.toFixed(2)},${y.toFixed(2)}L${(x + 4.6).toFixed(2)},${(cy + R - 1.6).toFixed(2)}Z" class="pino-cor"/>
+    <circle cx="${x.toFixed(2)}" cy="${cy.toFixed(2)}" r="${R}" class="pino-cor"/>
+    <circle cx="${x.toFixed(2)}" cy="${cy.toFixed(2)}" r="${R - 1.8}" class="pino-miolo"/>
+    ${miolo(x, cy)}
+    ${rotulo ? `<rect x="${(x + R - 3).toFixed(2)}" y="${(cy - R - 1).toFixed(2)}" width="${lb.toFixed(2)}" height="9" rx="4.5" class="pino-cor selo"/>
+      <text x="${(x + R - 3 + lb / 2).toFixed(2)}" y="${(cy - R + 5.6).toFixed(2)}" class="pino-n" text-anchor="middle">${esc(rotulo)}</text>` : ''}</g>`;
+}
+function mapaFazenda(fid, grande, zoom) {
+  const z = zoom || 1;
   const pastos = [...S.idx.pastos.values()].filter((p) => p.f === fid && p.contorno && p.contorno.coordinates);
   if (!pastos.length) return '';
   const elems = ((S.dados.mapa && S.dados.mapa.elementos) || []).filter((e) => e.f === fid && e.geo && e.geo.coordinates);
-  const pts = [...pastos.map((p) => p.contorno), ...elems.map((e) => e.geo)].flatMap((g) => g.coordinates[0]);
-  const lat0 = pts.reduce((s, c) => s + c[1], 0) / pts.length;
-  const kx = Math.cos((lat0 * Math.PI) / 180);
-  const xs = pts.map((c) => c[0] * kx), ys = pts.map((c) => -c[1]);
-  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
-  const W = 320, pad = 4, k = (W - 2 * pad) / (maxX - minX);
-  const H = Math.round((maxY - minY) * k + 2 * pad);
-  const P = (c) => [pad + (c[0] * kx - minX) * k, pad + (-c[1] - minY) * k];
-  const caminho = (g) => `M${g.coordinates[0].map((c) => P(c).map((v) => v.toFixed(1)).join(',')).join('L')}Z`;
-  const centro = (g) => {
-    const q = g.coordinates[0].map(P);
+  const fundo = ((S.dados.mapa && S.dados.mapa.fundos) || []).find((x) => x.f === fid);
+  const W = 320 * z;
+  let P, H;
+  if (fundo) {
+    const ya = merc(fundo.lat1), yb = merc(fundo.lat0);
+    H = Math.round((W * (ya - yb)) / (fundo.lon1 - fundo.lon0));
+    P = (c) => [((c[0] - fundo.lon0) / (fundo.lon1 - fundo.lon0)) * W, ((ya - merc(c[1])) / (ya - yb)) * H];
+  } else {
+    const pts = [...pastos.map((p) => p.contorno.coordinates[0]), ...elems.filter((e) => e.geo.type === 'Polygon').map((e) => e.geo.coordinates[0])].flat();
+    const xs = pts.map((c) => c[0]), ys = pts.map((c) => merc(c[1]));
+    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys), pad = 6;
+    const k = (W - 2 * pad) / (x1 - x0);
+    H = Math.round((y1 - y0) * k + 2 * pad);
+    P = (c) => [pad + (c[0] - x0) * k, pad + (y1 - merc(c[1])) * k];
+  }
+  const caminho = (anel) => `M${anel.map((c) => P(c).map((v) => v.toFixed(1)).join(',')).join('L')}Z`;
+  const centro = (anel) => {
+    const q = anel.map(P);
     let a = 0, cx = 0, cy = 0;
     for (let i = 0; i < q.length - 1; i++) {
       const f = q[i][0] * q[i + 1][1] - q[i + 1][0] * q[i][1];
@@ -416,21 +453,56 @@ function mapaFazenda(fid) {
     }
     return a ? [cx / (3 * a), cy / (3 * a)] : q[0];
   };
-  const curto = (t) => (t.length > 16 ? `${t.slice(0, 15)}…` : t);
-  let formas = '', textos = '';
+  const todas = (S.dados.mapa && S.dados.mapa.ocupacoes) || S.dados.ocupacoes || [];
+  let formas = '', textos = '', pinos = '';
   for (const p of pastos) {
     const st = situacaoPasto(p);
     const tip = `${p.nome} · ${F.dec(p.ha, 2)} ha${p.capim ? ` · ${p.capim}` : ''} · ` + (st.ocupado ? `${st.lotes.join(', ')} há ${st.dias} dias` : st.descanso != null ? `descanso há ${st.descanso} dias` : 'sem gado');
-    formas += `<path d="${caminho(p.contorno)}" class="${st.ocupado ? 'pasto-oc' : 'pasto-livre'}" data-tip="${esc(tip)}"/>`;
-    const [x, y] = centro(p.contorno);
-    const sub = st.ocupado ? `${st.dias} d · ${curto(st.lotes.join(', '))}` : st.descanso != null ? `descanso ${st.descanso} d` : 'sem gado';
-    textos += `<text x="${x.toFixed(1)}" y="${(y - 1).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(p.nome)}</text>`
-      + `<text x="${x.toFixed(1)}" y="${(y + 9).toFixed(1)}" class="mapa-s" text-anchor="middle">${esc(sub)}</text>`;
+    formas += `<path d="${caminho(p.contorno.coordinates[0])}" class="${fundo ? 'pasto-foto' : st.ocupado ? 'pasto-oc' : 'pasto-livre'}" data-tip="${esc(tip)}"/>`;
+    const [x, y] = centro(p.contorno.coordinates[0]);
+    const ocs = todas.filter((o) => !o.sai && (o.pasto === p.id || (o.tambem || []).includes(p.id)));
+    if (ocs.length) {
+      ocs.forEach((o, i) => {
+        const lote = S.idx.lotes.get(o.lote);
+        const tipo = tipoLote(lote);
+        const rot = o.cab != null ? `${o.cab}${/junto com/i.test(o.obs || '') ? '+' : ''}` : '?';
+        const dx = (i - (ocs.length - 1) / 2) * 26;
+        pinos += pinoSvg(x + dx, y - 3, tipo, (a, b) => vacaSvg(a, b, tipo === 'paridas'), rot,
+          `${lote ? lote.nome : 'lote'} · ${o.cab != null ? `${o.cab} cabeças${rot.endsWith('+') ? ' e mais gado junto' : ''}` : 'cabeças a confirmar'} · desde ${dtc(o.ent)}`);
+      });
+      textos += `<text x="${x.toFixed(1)}" y="${(y + 7).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(p.nome)}</text>`;
+    } else {
+      textos += `<text x="${x.toFixed(1)}" y="${(y + 2).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(p.nome)}</text>`
+        + `<text x="${x.toFixed(1)}" y="${(y + 10).toFixed(1)}" class="mapa-s" text-anchor="middle">${esc(st.descanso != null ? `descanso ${st.descanso} d` : 'sem gado')}</text>`;
+    }
   }
-  for (const e of elems) formas += `<path d="${caminho(e.geo)}" class="elem" data-tip="${esc(e.nome + (e.obs ? `: ${e.obs}` : ''))}"/>`;
-  return `<svg viewBox="0 0 ${W} ${H}" class="grafico mapa" role="img" aria-label="Mapa dos pastos">${formas}${textos}</svg>
-    <ul class="legenda"><li><i class="bola b5"></i>Com gado</li><li><i class="bola b2"></i>Em descanso</li><li><i class="bola b8"></i>Curral e praça</li></ul>
-    <p class="nota">Toque num pasto para ver os detalhes.</p>`;
+  for (const e of elems) {
+    const tip = e.nome + (e.obs ? `: ${e.obs}` : '');
+    let x, y;
+    if (e.geo.type === 'Polygon') {
+      formas += `<path d="${caminho(e.geo.coordinates[0])}" class="elem" data-tip="${esc(tip)}"/>`;
+      [x, y] = centro(e.geo.coordinates[0]);
+    } else [x, y] = P(e.geo.coordinates);
+    pinos += e.tipo === 'curral' ? pinoSvg(x, y, 'curral', curralSvg, '', tip) : pinoSvg(x, y, 'cocho', cochoSvg, '', tip);
+  }
+  const img = fundo ? `<image href="${esc(fundo.arquivo)}" x="0" y="0" width="${W}" height="${H}" preserveAspectRatio="none"/>` : '';
+  const credito = fundo && fundo.credito ? `<text x="${W - 3}" y="${H - 3}" class="credito" text-anchor="end">${esc(fundo.credito)}</text>` : '';
+  const svg = `<svg viewBox="0 0 ${W} ${H}" class="grafico mapa${fundo ? ' com-foto' : ''}${grande ? ' grande' : ''}${z > 1 ? ` z${z}` : ''}" data-zoom="${z}" role="img" aria-label="Mapa dos pastos">${img}${formas}${textos}${pinos}${credito}</svg>`;
+  if (grande) return svg;
+  return `${svg}<p class="nota">Toque num pasto ou num ícone para ver os detalhes.</p>
+    <button class="btn sec" data-ir="#mapa/${fid}">Abrir o mapa grande</button>`;
+}
+
+function telaMapa(fid) {
+  const f = S.idx.faz.get(Number(fid));
+  if (!f) return '<section class="pagina"><p class="vazio">Fazenda não encontrada.</p></section>';
+  return `<section class="pagina mapa-tela">
+    <div class="mapa-topo"><button class="voltar" data-acao="voltar">${I.voltar}Voltar</button>
+      <div class="zoom"><button class="btn-ic" data-acao="zoom" data-valor="-1" aria-label="Diminuir">−</button><button class="btn-ic" data-acao="zoom" data-valor="1" aria-label="Aumentar">+</button></div></div>
+    <h1 class="h1">Pastos · ${esc(f.codigo)}</h1>
+    <div class="mapa-caixa" id="mapa-caixa" data-f="${f.id}">${mapaFazenda(f.id, true)}</div>
+    <p class="nota">Use + e − para aproximar e arraste para andar pelo mapa. Toque num pasto ou num ícone para ver os detalhes.</p>
+  </section>`;
 }
 
 function definicoes() {

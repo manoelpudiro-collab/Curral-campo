@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '1.2 · 21/11/2026';
+const VERSAO_APP = '1.3 · 21/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -599,10 +599,10 @@ function desenhar(mensagem) {
     return;
   }
   const r = rota();
-  const telas = { painel: () => telaPainel(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais };
+  const telas = { painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais };
   let abaGuardada = null;
   try { abaGuardada = sessionStorage.getItem('cd.aba'); } catch { /* nada */ }
-  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' ? 'listas' : telas[r.nome] ? r.nome : 'painel';
+  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' ? 'listas' : r.nome === 'mapa' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
   if (r.nome !== 'animal') { try { sessionStorage.setItem('cd.aba', aba); } catch { /* nada */ } }
   app.innerHTML = topo() + (telas[r.nome] || telas.painel)() + abas(aba);
   for (const c of app.querySelectorAll('.cartao[data-cor]')) c.style.setProperty('--cor', LISTAS[c.dataset.cor].cor);
@@ -684,6 +684,16 @@ document.addEventListener('click', (ev) => {
     S.teclado = S.teclado === 'numeric' ? 'text' : 'numeric';
     const q = $('#q'); q.setAttribute('inputmode', S.teclado); b.textContent = S.teclado === 'numeric' ? 'ABC' : '123';
     q.blur(); setTimeout(() => q.focus(), 30);
+  } else if (acao === 'zoom') {
+    const svg = $('#mapa-caixa svg'), caixa = $('#mapa-caixa');
+    if (svg && caixa) {
+      const atual = Number(svg.dataset.zoom || 1);
+      const novo = Math.max(1, Math.min(4, atual + Number(b.dataset.valor)));
+      const cx = (caixa.scrollLeft + caixa.clientWidth / 2) / caixa.scrollWidth, cy = (caixa.scrollTop + caixa.clientHeight / 2) / caixa.scrollHeight;
+      if (novo === atual) return;
+      caixa.innerHTML = mapaFazenda(Number(caixa.dataset.f), true, novo);
+      caixa.scrollLeft = cx * caixa.scrollWidth - caixa.clientWidth / 2; caixa.scrollTop = cy * caixa.scrollHeight - caixa.clientHeight / 2;
+    }
   } else if (acao === 'pedir-sair') janelaSair();
   else if (acao === 'sair') fazerSair();
   else if (acao === 'fechar') $('.fundo')?.remove();

@@ -255,3 +255,32 @@ button { font: inherit; color: inherit; }
 .mapa text { pointer-events: none; fill: #1e2a1f; paint-order: stroke; stroke: rgba(255, 255, 255, .8); stroke-width: 2.5px; stroke-linejoin: round; }
 .mapa .mapa-n { font-size: 9.5px; font-weight: 700; }
 .mapa .mapa-s { font-size: 8px; }
+/* mapa com foto de satélite e ícones */
+.mapa.com-foto { border-radius: 12px; background: #1d241d; }
+.mapa .pasto-foto { fill: #ffffff; fill-opacity: .04; stroke: #ffffff; stroke-width: 1.1; stroke-opacity: .95; }
+.mapa.com-foto .elem { fill: #ffffff; fill-opacity: .25; stroke: #ffffff; stroke-width: .6; }
+.mapa.com-foto text.mapa-n, .mapa.com-foto text.mapa-s { fill: #ffffff; stroke: rgba(15, 20, 15, .85); }
+.mapa .pino { cursor: pointer; }
+.mapa .pino .pino-miolo { fill: #ffffff; }
+.mapa .pino text.pino-n { font-size: 6.4px; font-weight: 800; fill: #ffffff; stroke: rgba(15, 20, 15, .9); stroke-width: 1.6px; paint-order: stroke; }
+.mapa .pino .vaca rect, .mapa .pino .vaca polygon { stroke: none; }
+.mapa .pino .vaca .bez { stroke: #ffffff; stroke-width: 1.5; }
+.mapa .pino .traco rect, .mapa .pino .traco line { fill: none; stroke-width: 6; stroke-linecap: round; }
+.mapa .pc-abate .pino-cor, .mapa .pc-abate .vaca { fill: #a8415b; }
+.mapa .pc-novilhas .pino-cor, .mapa .pc-novilhas .vaca { fill: #2d6a4f; }
+.mapa .pc-prenhas .pino-cor, .mapa .pc-prenhas .vaca { fill: #2b8c8c; }
+.mapa .pc-paridas .pino-cor, .mapa .pc-paridas .vaca { fill: #d99a2b; }
+.mapa .pc-bezerros .pino-cor, .mapa .pc-bezerros .vaca { fill: #4e7fc9; }
+.mapa .pc-gado .pino-cor, .mapa .pc-gado .vaca { fill: #7a5c3e; }
+.mapa .pc-cocho .pino-cor { fill: #52b788; } .mapa .pc-cocho .traco * { stroke: #2d6a4f; }
+.mapa .pc-curral .pino-cor { fill: #7a5c3e; } .mapa .pc-curral .traco * { stroke: #7a5c3e; }
+.mapa .credito { font-size: 5.5px; fill: #ffffff; stroke: rgba(0, 0, 0, .7); stroke-width: 1.4px; paint-order: stroke; pointer-events: none; }
+.mapa-topo { display: flex; justify-content: space-between; align-items: center; }
+.zoom { display: flex; gap: 8px; }
+.zoom .btn-ic { font-size: 22px; font-weight: 700; }
+.mapa-caixa { overflow: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; max-height: 72vh; background: #1d241d; }
+.mapa.grande { display: block; width: 100%; }
+.mapa.grande.z2 { width: 200%; } .mapa.grande.z3 { width: 300%; } .mapa.grande.z4 { width: 400%; }
+.mapa .pino .selo { stroke: #ffffff; stroke-width: 1; }
+.mapa .pino text.pino-n { font-size: 6.2px; stroke-width: 0; fill: #ffffff; }
+.mapa .pasto-foto { vector-effect: non-scaling-stroke; stroke-width: 2px; }
