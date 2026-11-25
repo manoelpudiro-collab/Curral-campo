@@ -623,5 +623,8 @@ function janelaLote(i) {
       ${linha('Entrou no pasto', o.ent ? `${dtc(o.ent)} · há ${diasEntre(o.ent, hojeISO())} dias` : '—')}
     </dl></div>
     <div id="lote-cats" class="cats" hidden>${cats}</div>
-    ${botoesBreve([['balanca', 'Pesagem'], ['pasto', 'Mudar de pasto'], ['nasc', 'Nascimento'], ['morte', 'Morte'], ['saude', 'Vacina ou remédio'], ['curral', 'Sessão no curral']])}`);
+    ${dono() ? `<div class="botoes"><button class="botao" data-ir="#lancar/pesagem/lote-${o.lote}">${I.balanca}<span>Pesar o lote</span></button>
+      <button class="botao" data-ir="#lancar/pasto/lote-${o.lote}">${I.pasto}<span>Mudar de pasto</span></button>
+      <div class="botao breve">${I.saude}<span>Vacina ou remédio</span><small>em breve</small></div></div>`
+      : botoesBreve([['balanca', 'Pesagem'], ['pasto', 'Mudar de pasto'], ['saude', 'Vacina ou remédio']])}`);
 }

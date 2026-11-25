@@ -414,3 +414,38 @@ button { font: inherit; color: inherit; }
 
 .aviso-nat { border-left: 3px solid var(--atencao); padding-left: 10px; }
 .aviso-nat b { color: var(--atencao); }
+
+/* lançar pelo app (2.2, 25/11): formulários grandes, fáceis de usar no curral */
+.h1-ic { display: flex; align-items: center; gap: 10px; }
+.h1-ic svg { width: 26px; height: 26px; color: var(--acento); }
+.campo { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.campo > span { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--apagado); }
+.campo input { width: 100%; min-width: 0; background: var(--cartao); color: var(--texto); border: 1.5px solid var(--linha); border-radius: 14px;
+  padding: 13px 14px; font: inherit; font-size: 20px; font-weight: 650; outline: 0; }
+.campo input:focus { border-color: var(--acento); }
+.campo input::placeholder { color: var(--apagado); font-weight: 400; font-size: 17px; }
+.campo input[type="date"] { font-size: 17px; min-height: 52px; -webkit-appearance: none; appearance: none; }
+.linha-data { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.pesar { display: grid; grid-template-columns: 1.1fr 1fr; gap: 10px; }
+.num-grande { font-size: 34px !important; text-align: center; }
+.achado { margin: 0; font-size: 14px; color: var(--apagado); }
+.achado.sim { color: var(--texto); } .achado.sim b { color: var(--acento); font-size: 16px; }
+.achado.nao { color: var(--ruim); }
+.aviso-t { color: var(--atencao) !important; }
+.perigo-t { color: var(--ruim); }
+.chips.quebra { flex-wrap: wrap; overflow: visible; }
+.chips.atalhos .chip { display: inline-flex; align-items: center; gap: 6px; }
+.chips.atalhos svg { width: 16px; height: 16px; }
+.opcoes { display: flex; flex-direction: column; gap: 8px; }
+.opcao { text-align: left; background: var(--cartao); border: 1.5px solid var(--linha); border-radius: 14px; padding: 11px 14px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 2px; color: var(--texto); }
+.opcao b { font-size: 16px; } .opcao small { font-size: 12.5px; color: var(--apagado); }
+.opcao[aria-pressed="true"] { border-color: var(--acento); background: color-mix(in srgb, var(--acento) 18%, var(--cartao)); }
+.opcao[aria-pressed="true"] b::before { content: "✓ "; color: var(--acento); }
+.duas-op { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opcao.grande { align-items: center; text-align: center; padding: 16px 10px; } .opcao.grande b { font-size: 19px; }
+.revisao { border-color: color-mix(in srgb, var(--acento) 45%, var(--linha)); }
+.rev-linhas { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 15.5px; }
+.item.recusado .item-t { color: var(--atencao); }
+.tempo li.t-fila { --cor: var(--atencao); }
+.tempo li.t-fila .tempo-ic { background: transparent; border: 2px dashed var(--cor); }

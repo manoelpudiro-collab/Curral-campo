@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.1 · 25/11/2026';
+const VERSAO_APP = '2.2 · 25/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -174,8 +174,9 @@ async function atualizar(manual = false) {
     gravar(CH.quando, agora);
     S.online = true;
     carregar(j.copia, j.usuario, agora);
-    desenhar();
+    if (digitando()) desenharTopo(); else desenhar();
     if (manual) avisar('Atualizado agora.');
+    if (nFila()) setTimeout(() => enviarFila(), 0);
   } catch (e) {
     S.online = false;
     if (manual) avisar(navigator.onLine ? 'Não consegui atualizar agora. Mostrando a última cópia.' : 'Sem internet. Mostrando a última cópia.');
@@ -263,7 +264,8 @@ function telaEntrar(mensagem) {
 
 function topo() {
   const quando = horaDe(S.quando);
-  const estado = S.buscando ? 'Atualizando…' : quando ? `Atualizado ${quando}` : 'Sem cópia ainda';
+  const nf = typeof nFila === 'function' ? nFila() : 0;
+  const estado = nf ? `${nf} esperando envio` : S.buscando ? 'Atualizando…' : quando ? `Atualizado ${quando}` : 'Sem cópia ainda';
   return `<header class="topo">
     <div class="topo-marca"><img src="icones/icone-180.png" alt="">
       <div><div class="topo-t">Curral Digital</div>
@@ -277,7 +279,7 @@ function abas(atual) {
   const a = (id, rot, ic) => `<button class="aba" data-ir="#${id}" ${atual === id ? 'aria-current="page"' : ''}><span class="aba-ic">${ic}</span><span>${rot}</span></button>`;
   return `<nav class="abas"><div class="abas-dentro">
     ${a('painel', 'Início', I.inicio)}${a('buscar', 'Rebanho', I.rebanho)}
-    <button class="aba" data-acao="lancar"><span class="aba-ic">${I.manejo}</span><span>Manejo</span></button>
+    ${a('lancar', 'Manejo', I.manejo)}
     ${a('agenda', 'Agenda', I.agenda)}${a('mais', 'Mais', I.mais)}
   </div></nav>`;
 }
@@ -356,6 +358,10 @@ function telaAnimal(id) {
       <div class="selos">${selos.join('')}</div>
     </div>
     <div class="numeros">${nums.map(([l, v, s]) => `<div class="numero"><p class="numero-l">${esc(l)}</p><p class="numero-v">${esc(v)}</p><p class="numero-s">${esc(s)}</p></div>`).join('')}</div>
+    ${a.st === 'ativo' && dono() ? `<div class="chips atalhos">
+      <button class="chip" data-ir="#lancar/pesagem/${a.id}">${I.balanca}Pesar</button>
+      ${a.s === 'F' && !['bezerra'].includes(a.c) ? `<button class="chip" data-ir="#lancar/nascimento/${a.id}">${I.nasc}Pariu</button>` : ''}
+      <button class="chip" data-ir="#lancar/morte/${a.id}">${I.morte}Morte</button></div>` : ''}
     ${blocoReproducao(a)}
     ${blocoTempo(a)}
     ${blocoFamilia(a)}
@@ -523,7 +529,8 @@ function itensDoTempo(a) {
     add(f.nasc || (ev && ev.d), 'cria', 'familia', `Pariu ${f.c === 'bezerra' || f.s === 'F' ? 'uma bezerra' : 'um bezerro'}`,
       [f.n, ev && ev.aprox ? 'data aproximada' : null, gestTxt(ev)].filter(Boolean).join(' · '), `#animal/${f.id}`);
   }
-  itens.sort((x, y) => y.d.localeCompare(x.d));
+  if (typeof pendentesDoAnimal === 'function') itens.push(...pendentesDoAnimal(a));
+  itens.sort((x, y) => y.d.localeCompare(x.d) || (x.tipo === 'fila' ? -1 : 0));
   return itens;
 }
 function itemTempo(x, futuro) {
@@ -723,6 +730,7 @@ function janelaSair() {
   el.innerHTML = `<div class="janela" role="dialog" aria-modal="true" aria-labelledby="js-t">
     <h2 id="js-t">Sair deste celular?</h2>
     <p>A cópia do rebanho é apagada deste aparelho e a chave dele é bloqueada. Para entrar de novo, peça um código ao bot com /app.</p>
+    ${nFila() ? `<p class="aviso-t"><b>Atenção: ${nFila()} lançamento(s) ainda não foram para o sistema.</b> Eles ficam guardados neste celular e vão quando você entrar de novo, com internet.</p>` : ''}
     <button class="btn perigo" data-acao="sair">Sim, sair</button>
     <button class="btn sec" data-acao="fechar">Cancelar</button></div>`;
   document.body.appendChild(el);
@@ -749,7 +757,7 @@ function desenhar(mensagem) {
     return;
   }
   const r = rota();
-  const telas = { painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais };
+  const telas = { painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais, lancar: () => telaLancar(r.arg) };
   let abaGuardada = null;
   try { abaGuardada = sessionStorage.getItem('cd.aba'); } catch { /* nada */ }
   const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' || r.nome === 'listas' ? 'buscar' : r.nome === 'mapa' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
@@ -898,7 +906,7 @@ document.addEventListener('visibilitychange', () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // versão nova chegou: recarrega sozinho (o app só mostra dados, não há nada digitado para perder)
+      // versão nova chegou: recarrega sozinho (o que estava sendo lançado fica no rascunho e na fila do celular)
       if (S.tinhaControlador && !S.recarregando) { S.recarregando = true; location.reload(); return; }
       S.tinhaControlador = true;
     });
