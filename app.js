@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '1.4 · 21/11/2026';
+const VERSAO_APP = '2.0 · 25/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -90,6 +90,15 @@ const I = {
   saude: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m14 4 6 6M17 7l-9 9-3 1 1-3 9-9M4 20l3-3"/></svg>',
   hist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
   dinheiro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  sino: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4l2-2Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  manejo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15l9 5 9-5-9-5-9 5Z"/><path d="M12 10V3l5 2-5 2"/></svg>',
+  lancar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  rebanho: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5c1 2 2.5 3 4.5 3h7c2 0 3.5-1 4.5-3"/><path d="M7.5 8 7 14c0 3 2 6 5 6s5-3 5-6l-.5-6"/><path d="M10 16.5h.01M14 16.5h.01"/><circle cx="9.5" cy="11.5" r=".6" fill="currentColor"/><circle cx="14.5" cy="11.5" r=".6" fill="currentColor"/></svg>',
+  balanca: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20h16M6 20V9h12v11"/><path d="M9 13h6"/><path d="M12 4v5"/></svg>',
+  curral: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9h18M3 15h18M5 6v14M12 6v14M19 6v14"/></svg>',
+  morte: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M6 9h12"/></svg>',
+  nasc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c1-4 3.8-6.5 7-6.5s6 2.5 7 6.5"/></svg>',
+  chuva: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 6.5 4 4 0 0 1 17 15H7Z"/><path d="M8 18l-1 2M12 18l-1 2M16 18l-1 2"/></svg>',
   pasto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 20h18M6 20c0-4 1-7 3-9M12 20c0-5 0-8 1-11M18 20c0-4-1-6-3-8"/></svg>',
 };
 
@@ -257,14 +266,17 @@ function topo() {
     <div class="topo-marca"><img src="icones/icone-180.png" alt="">
       <div><div class="topo-t">Curral Digital</div>
       <div class="topo-s"><span class="ponto ${S.online ? 'on' : ''}"></span>${S.online ? '' : 'Sem internet · '}${esc(estado)}</div></div></div>
+    <button class="btn-ic" data-acao="avisos" aria-label="Avisos">${I.sino}${nAvisos() ? `<span class="contador">${nAvisos()}</span>` : ''}</button>
     <button class="btn-ic ${S.buscando ? 'girando' : ''}" data-acao="atualizar" aria-label="Atualizar agora">${I.atualizar}</button>
   </header>`;
 }
 
 function abas(atual) {
-  const a = (id, rot, ic) => `<button class="aba" data-ir="#${id}" ${atual === id ? 'aria-current="page"' : ''}>${ic}<span>${rot}</span></button>`;
+  const a = (id, rot, ic) => `<button class="aba" data-ir="#${id}" ${atual === id ? 'aria-current="page"' : ''}><span class="aba-ic">${ic}</span><span>${rot}</span></button>`;
   return `<nav class="abas"><div class="abas-dentro">
-    ${a('painel', 'Início', I.inicio)}${a('buscar', 'Buscar', I.busca)}${a('listas', 'Listas', I.listas)}${a('agenda', 'Agenda', I.agenda)}${a('mais', 'Mais', I.mais)}
+    ${a('painel', 'Início', I.inicio)}${a('buscar', 'Rebanho', I.rebanho)}
+    <button class="aba" data-acao="lancar"><span class="aba-ic">${I.manejo}</span><span>Manejo</span></button>
+    ${a('agenda', 'Agenda', I.agenda)}${a('mais', 'Mais', I.mais)}
   </div></nav>`;
 }
 
@@ -307,7 +319,8 @@ function resultados() {
     const recentes = lerJSON(CH.recentes, []).map((id) => S.idx.porId.get(id)).filter(Boolean);
     const porFaz = S.dados.fazendas.map((f) => `${f.codigo} ${S.dados.animais.filter((a) => a.st === 'ativo' && a.f === f.id).length}`).join(' · ');
     return `<p class="nota"><b>${ativos.length} cabeças</b> ${S.fazenda === 'todas' ? `no rebanho (${esc(porFaz)})` : `na ${esc(S.fazenda)}`}. Digite o número do brinco.</p>
-      ${recentes.length ? `<h2 class="h2">Vistos por último</h2><div class="lista">${recentes.map((a) => itemAnimal(a)).join('')}</div>` : ''}`;
+      ${recentes.length ? `<h2 class="h2">Vistos por último</h2><div class="lista">${recentes.map((a) => itemAnimal(a)).join('')}</div>` : ''}
+      <h2 class="h2">${I.listas}Listas</h2><div class="grade">${cartoesListas()}</div>`;
   }
   const r = buscar(S.q);
   if (!r.length) return `<p class="vazio">Nenhum animal com “${esc(S.q)}”${S.fazenda !== 'todas' ? ` na ${esc(S.fazenda)}` : ''}.</p>`;
@@ -508,12 +521,51 @@ function animaisDaLista(id) {
   return r;
 }
 
-function telaListas() {
-  const cartoes = Object.entries(LISTAS).map(([id, L]) => {
+function cartoesListas() {
+  return Object.entries(LISTAS).map(([id, L]) => {
     const n = animaisDaLista(id).length;
     return `<button class="cartao" data-ir="#lista/${id}" data-cor="${esc(id)}"><span class="cartao-v">${n}</span><span class="cartao-l">${esc(L.t)}</span></button>`;
   }).join('');
-  return `<section class="pagina"><h1 class="h1">Listas</h1>${chipsFazenda()}<div class="grade">${cartoes}</div></section>`;
+}
+function pintarCartoes(raiz = document) {
+  for (const c of raiz.querySelectorAll('.cartao[data-cor]')) c.style.setProperty('--cor', LISTAS[c.dataset.cor].cor);
+}
+function telaListas() {
+  return `<section class="pagina"><h1 class="h1">Listas</h1>${chipsFazenda()}<div class="grade">${cartoesListas()}</div></section>`;
+}
+
+const LANCAR = [['balanca', 'Pesagem'], ['pasto', 'Mudar de pasto'], ['nasc', 'Nascimento'], ['saude', 'Vacina ou remédio'],
+  ['morte', 'Morte'], ['curral', 'Sessão no curral'], ['chuva', 'Chuva'], ['peso', 'Salga de cocho'], ['repro', 'Protocolo IATF']];
+const botoesBreve = (lista) => `<div class="botoes">${lista.map(([ic, t]) => `<div class="botao breve">${I[ic]}<span>${esc(t)}</span><small>em breve</small></div>`).join('')}</div>`;
+function abrirJanela(html) {
+  $('.fundo')?.remove();
+  const el = document.createElement('div');
+  el.className = 'fundo';
+  el.innerHTML = `<div class="janela" role="dialog" aria-modal="true">${html}<button class="btn sec" data-acao="fechar">Fechar</button></div>`;
+  document.body.appendChild(el);
+  return el;
+}
+function janelaLancar() {
+  abrirJanela(`<h2>Manejo</h2>${botoesBreve(LANCAR)}
+    <p>Por enquanto, lance pelo bot do Telegram ou pela conversa com o Claude. Lançar pelo app, mesmo sem sinal, é a próxima etapa.</p>`);
+}
+function avisos() {
+  const l = [];
+  const r = S.dados && S.dados.painel && S.dados.painel.resumo && S.dados.painel.resumo[0];
+  if (r && Number(r.pendencias) > 0) l.push({ t: `${r.pendencias} recado(s) do bot esperando conferência`, s: 'Peça ao Claude: “confere as pendências do bot”.' });
+  if (S.dados) {
+    const h = hojeISO(), am = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+    for (const m of S.dados.manejos.filter((x) => x.st === 'previsto' && (x.prev === h || x.prev === am))) {
+      l.push({ t: `${NOME_ETAPA[m.etapa] || m.etapa}${m.prod && m.prod !== 'IATF' ? ` · ${m.prod}` : ''}`, s: `${faz(m.f).codigo} · ${dtc(m.prev)} (${relativo(m.prev)})` });
+    }
+  }
+  return l;
+}
+const nAvisos = () => avisos().length;
+function janelaAvisos() {
+  const l = avisos();
+  abrirJanela(`<h2>Avisos</h2>${l.length ? `<div class="lista">${l.map((x) => `<div class="item item-fixo"><span><span class="item-t">${esc(x.t)}</span><span class="item-m">${esc(x.s)}</span></span></div>`).join('')}</div>`
+    : '<p class="vazio">Nenhum aviso agora.</p>'}`);
 }
 
 function telaLista(id) {
@@ -602,10 +654,10 @@ function desenhar(mensagem) {
   const telas = { painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais };
   let abaGuardada = null;
   try { abaGuardada = sessionStorage.getItem('cd.aba'); } catch { /* nada */ }
-  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' ? 'listas' : r.nome === 'mapa' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
+  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' || r.nome === 'listas' ? 'buscar' : r.nome === 'mapa' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
   if (r.nome !== 'animal') { try { sessionStorage.setItem('cd.aba', aba); } catch { /* nada */ } }
   app.innerHTML = topo() + (telas[r.nome] || telas.painel)() + abas(aba);
-  for (const c of app.querySelectorAll('.cartao[data-cor]')) c.style.setProperty('--cor', LISTAS[c.dataset.cor].cor);
+  pintarCartoes(app); pintarBarras(app);
   const secAtual = app.querySelector('.secoes [aria-pressed="true"]');
   if (secAtual) secAtual.parentElement.scrollLeft = Math.max(0, secAtual.offsetLeft - 16);
   if (r.nome !== 'buscar') window.scrollTo(0, 0);
@@ -666,6 +718,8 @@ async function fazerSair() {
 }
 
 document.addEventListener('click', (ev) => {
+  const pino = ev.target.closest('.pino[data-ocup]');
+  if (pino) { janelaLote(Number(pino.dataset.ocup)); return; }
   const ir = ev.target.closest('[data-ir]');
   if (ir) { ev.preventDefault(); location.hash = ir.dataset.ir; return; }
   const b = ev.target.closest('[data-acao]');
@@ -678,7 +732,7 @@ document.addEventListener('click', (ev) => {
     S.fazenda = b.dataset.valor; gravar(CH.fazenda, S.fazenda);
     if (rota().nome === 'buscar') {
       for (const c of document.querySelectorAll('.chip')) c.setAttribute('aria-pressed', String(c.dataset.valor === S.fazenda));
-      $('#resultados').innerHTML = resultados();
+      $('#resultados').innerHTML = resultados(); pintarCartoes();
     } else desenhar();
   } else if (acao === 'teclado') {
     S.teclado = S.teclado === 'numeric' ? 'text' : 'numeric';
@@ -697,10 +751,16 @@ document.addEventListener('click', (ev) => {
   } else if (acao === 'pedir-sair') janelaSair();
   else if (acao === 'sair') fazerSair();
   else if (acao === 'fechar') $('.fundo')?.remove();
+  else if (acao === 'lancar') janelaLancar();
+  else if (acao === 'avisos') janelaAvisos();
+  else if (acao === 'lote-aba') {
+    for (const x of document.querySelectorAll('.abas-lote button')) x.setAttribute('aria-pressed', String(x === b));
+    $('#lote-resumo').hidden = b.dataset.valor !== 'resumo'; $('#lote-cats').hidden = b.dataset.valor !== 'cats';
+  }
 });
 
 document.addEventListener('input', (ev) => {
-  if (ev.target.id === 'q') { S.q = ev.target.value; $('#resultados').innerHTML = resultados(); }
+  if (ev.target.id === 'q') { S.q = ev.target.value; $('#resultados').innerHTML = resultados(); pintarCartoes(); }
   if (ev.target.id === 'codigo') {
     ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 6);
     if (ev.target.value.length === 6) fazerEntrar();
@@ -715,7 +775,7 @@ document.addEventListener('keydown', (ev) => {
   if (ev.target.id === 'codigo') fazerEntrar();
 });
 
-window.addEventListener('hashchange', () => desenhar());
+window.addEventListener('hashchange', () => { $('.fundo')?.remove(); desenhar(); });
 window.addEventListener('online', () => { S.online = true; desenharTopo(); if (precisaAtualizar()) atualizar(); });
 window.addEventListener('offline', () => { S.online = false; desenharTopo(); });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && precisaAtualizar()) atualizar(); });

@@ -46,7 +46,9 @@ const dataHora = (s) => (s ? `${s.slice(8, 10)}/${s.slice(5, 7)} ${s.slice(11, 1
 
 // ------------------------------------------------------------------ peças
 function kpi(rotulo, valor, sub, extra = '') {
-  return `<div class="kpi"><p class="kpi-l">${esc(rotulo)}</p><p class="kpi-v">${esc(valor)}</p>${sub ? `<p class="kpi-s">${sub}</p>` : ''}${extra}</div>`;
+  const est = extra.includes('pilula ok') ? ' k-ok' : extra.includes('pilula atencao') ? ' k-atencao' : '';
+  const longo = String(valor).length > 7 ? ' longo' : '';
+  return `<div class="kpi${est}"><p class="kpi-l">${esc(rotulo)}</p><p class="kpi-v${longo}">${esc(valor)}</p>${sub ? `<p class="kpi-s">${sub}</p>` : ''}${extra}</div>`;
 }
 function barraMeta(v, chave, neutro) {
   const m = META[chave];
@@ -161,21 +163,60 @@ const meses12 = () => (P('nascimentos_mes').length ? P('nascimentos_mes').map((r
 // ------------------------------------------------------------------ abas
 const SECOES = [['geral', 'Geral'], ['rebanho', 'Rebanho'], ['reproducao', 'Reprodução'], ['desempenho', 'Desempenho'], ['financeiro', 'Financeiro'], ['campo', 'Campo']];
 
+function saudacao() {
+  const h = new Date().getHours();
+  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+}
+const pct = (a, b) => (Number(b) > 0 ? Math.round((100 * Number(a)) / Number(b)) : 0);
+function pintarBarras(raiz = document) {
+  for (const b of raiz.querySelectorAll('.heroi-faz .barra')) { b.style.setProperty('--p', `${b.dataset.p}%`); b.style.setProperty('--cor', b.dataset.c); }
+}
+function anel(rotulo, v, chave, neutro) {
+  const m = META[chave], C = 2 * Math.PI * 40;
+  const bom = v != null && (m.tipo === 'min' ? v >= m.alvo : v <= m.alvo);
+  const est = v == null || neutro ? 'neutro' : bom ? 'ok' : 'atencao';
+  const fr = v == null ? 0 : Math.max(0.02, Math.min(1, v / m.escala));
+  return `<div class="anel ${est}"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" class="an-fundo"/>
+    <circle cx="50" cy="50" r="40" class="an-arco" stroke-dasharray="${(fr * C).toFixed(1)} ${C.toFixed(1)}"/>
+    <text x="50" y="57" text-anchor="middle" class="an-v">${esc(v == null ? '—' : F.pct(v))}</text></svg>
+    <p>${esc(rotulo)}</p><small>${esc(m.texto)} · <b>${esc(neutro ? 'antes da IATF' : bom ? 'na meta' : 'fora')}</b></small></div>`;
+}
+const ATALHOS = [['rebanho', 'Rebanho', '#painel/rebanho'], ['repro', 'Reprodução', '#painel/reproducao'], ['peso', 'Desempenho', '#painel/desempenho'],
+  ['pasto', 'Mapa e pastos', '#painel/campo'], ['agenda', 'Agenda', '#agenda'], ['listas', 'Listas', '#listas'],
+  ['dinheiro', 'Finanças', '#painel/financeiro'], ['busca', 'Buscar animal', '#buscar'], ['hist', 'Lançamentos', '#painel/geral-lanc']];
+function telaInicio() {
+  const r = P1('resumo');
+  const neutroP = Number(r.prenhas_ultimo_dg) > 0 && Number(r.prenhas_touro) >= Number(r.prenhas_ultimo_dg);
+  const fz = P('fazendas');
+  const fazC = (cod, nome) => { const f = fz.find((x) => x.fazenda === cod) || {};
+    return `<div class="faz-c"><small>${esc(nome)}</small><b>${esc(F.int(f.cabecas))}</b><span>${esc(F.int(f.nascimentos_12m))} nasc. · ${esc(F.int(f.mortes_12m))} mortes (12 m)</span></div>`; };
+  const at = ATALHOS.filter(([, , h]) => h !== '#painel/financeiro' || dono());
+  return `<section class="pagina">
+    <div class="faixa"><h1>Fazendas MD e 3C</h1><p>${esc((S.usuario && S.usuario.nome) || '')} · ${esc(F.int(r.cabecas))} cabeças</p>
+      <button class="busca-faixa" data-ir="#buscar">${I.busca}<span>Buscar animal pelo número</span></button></div>
+    ${Number(r.pendencias) > 0 ? `<div class="dica"><b>${esc(F.int(r.pendencias))} recado(s) do bot esperando conferência</b><span>Peça ao Claude: “confere as pendências do bot”.</span></div>` : ''}
+    <h2 class="titulo-secao">Sua gestão</h2>
+    <div class="bloco"><div class="aneis">${anel('Prenhez', r.taxa_prenhez_pct == null ? null : Number(r.taxa_prenhez_pct), 'prenhez', neutroP)}${anel('Natalidade', r.natalidade_pct == null ? null : Number(r.natalidade_pct), 'natalidade')}${anel('Mortalidade', r.mortalidade_pct == null ? null : Number(r.mortalidade_pct), 'mortalidade')}</div>
+      <p class="nota">Prenhez do último diagnóstico (${esc(F.int(r.prenhas_ultimo_dg))} de ${esc(F.int(r.diagnosticadas))}); natalidade e mortalidade dos últimos 12 meses.</p></div>
+    <div class="duas">${fazC('3C', 'Três Corações · 3C')}${fazC('MD', 'Fazenda MD')}</div>
+    <div class="kpis">${kpi('Cabeças', F.int(r.cabecas), `${esc(F.int(r.matrizes))} matrizes · ${esc(F.int(r.novilhas))} novilhas · ${esc(F.int(r.bezerros))} bezerros`)}
+      ${dono() ? kpi('Resultado do ano', F.brl(r.resultado_ano), `gastos ${esc(F.brl(r.gasto_ano))}`) : kpi('Nascimentos · 12 meses', F.int(r.nascimentos_12m), '')}</div>
+    <h2 class="titulo-secao">Painéis</h2>
+    <div class="botoes">${at.map(([ic, t, h]) => `<button class="botao" data-ir="${h}">${I[ic]}<span>${esc(t)}</span></button>`).join('')}</div>
+    ${bloco('Próximos manejos', 'programados', `${linhasLista(P('agenda').slice(0, 4).map((a) => ({
+      t: `${esc(NOME_ETAPA[a.etapa] || a.etapa)}${a.produto && a.produto !== 'IATF' ? ` · ${esc(a.produto)}` : ''}`,
+      s: esc([a.fazenda, a.lote, a.n_animais ? `${a.n_animais} animais` : null].filter(Boolean).join(' · ')),
+      v: `${esc(dtc(a.data))}<small>${esc(relativo(a.data))}</small>` })), 'Nenhum manejo programado.')}<button class="link" data-ir="#agenda">Ver a agenda completa</button>`)}
+  </section>`;
+}
 function telaPainel(secao) {
   if (!S.dados.painel) return '<section class="pagina"><p class="vazio">Atualize com internet para baixar o painel.</p></section>';
+  if (!secao) return telaInicio();
   const secoes = SECOES.filter(([id]) => id !== 'financeiro' || dono());
-  const atual = secoes.some(([id]) => id === secao) ? secao : 'geral';
-  const r = P1('resumo');
-  const ag = P('agenda')[0];
+  const atual = secao === 'geral-lanc' ? 'geral' : secoes.some(([id]) => id === secao) ? secao : 'geral';
   const corpo = { geral: secGeral, rebanho: secRebanho, reproducao: secReproducao, desempenho: secDesempenho, financeiro: secFinanceiro, campo: secCampo }[atual]();
   return `<section class="pagina">
-    <div class="heroi">
-      <p class="heroi-m">Fazendas MD e Três Corações</p>
-      <p class="heroi-t">Hoje são <b>${esc(F.int(r.cabecas))}</b> cabeças nas duas fazendas.${ag ? ` Próximo manejo: <b>${esc(NOME_ETAPA[ag.etapa] || ag.etapa)}</b>, ${esc(dtc(ag.data))} (${esc(relativo(ag.data))}).` : ''}</p>
-      <ul class="heroi-c"><li><i class="bola b1"></i>3C <b>${esc(F.int(r.cabecas_3c))}</b></li><li><i class="bola b5"></i>MD <b>${esc(F.int(r.cabecas_md))}</b></li>
-        ${r.ultima_mensagem ? `<li>Bot: ${esc(dataHora(r.ultima_mensagem))}</li>` : ''}</ul>
-    </div>
-    ${Number(r.pendencias) > 0 ? `<div class="dica"><b>${esc(F.int(r.pendencias))} mensagem(ns) do bot esperando conferência</b><span>Peça ao Claude: “confere as pendências do bot”.</span></div>` : ''}
+    <button class="voltar" data-ir="#painel">${I.voltar}Início</button>
     <div class="chips secoes" role="tablist">${secoes.map(([id, nome]) => `<button class="chip" role="tab" data-ir="#painel/${id}" aria-pressed="${id === atual}">${esc(nome)}</button>`).join('')}</div>
     ${corpo}
     ${definicoes()}
@@ -422,9 +463,9 @@ const vacaSvg = (x, y, bezerro) => `<g class="vaca" transform="translate(${(x + 
   ${bezerro ? '<rect x="-31" y="2" width="16" height="10" rx="4" class="bez"/><rect x="-29" y="11" width="3" height="8"/><rect x="-19" y="11" width="3" height="8"/>' : ''}</g>`;
 const cochoSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.2)"><rect x="-30" y="-9" width="60" height="24" rx="4"/><line x1="-27" y1="15" x2="-33" y2="27"/><line x1="27" y1="15" x2="33" y2="27"/></g>`;
 const curralSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.2)"><line x1="-30" y1="-9" x2="30" y2="-9"/><line x1="-30" y1="9" x2="30" y2="9"/><line x1="-24" y1="-21" x2="-24" y2="21"/><line x1="0" y1="-21" x2="0" y2="21"/><line x1="24" y1="-21" x2="24" y2="21"/></g>`;
-function pinoSvg(x, y, cls, miolo, rotulo, tip) {
+function pinoSvg(x, y, cls, miolo, rotulo, tip, ocup) {
   const R = 9, cy = y - R - 5, lb = rotulo ? Math.max(9, 4.2 * String(rotulo).length + 4) : 0;
-  return `<g class="pino pc-${cls}" data-tip="${esc(tip)}">
+  return `<g class="pino pc-${cls}" ${ocup != null ? `data-ocup="${ocup}"` : `data-tip="${esc(tip)}"`}>
     <path d="M${(x - 4.6).toFixed(2)},${(cy + R - 1.6).toFixed(2)}L${x.toFixed(2)},${y.toFixed(2)}L${(x + 4.6).toFixed(2)},${(cy + R - 1.6).toFixed(2)}Z" class="pino-cor"/>
     <circle cx="${x.toFixed(2)}" cy="${cy.toFixed(2)}" r="${R}" class="pino-cor"/>
     <circle cx="${x.toFixed(2)}" cy="${cy.toFixed(2)}" r="${R - 1.8}" class="pino-miolo"/>
@@ -467,11 +508,12 @@ function mapaFazenda(fid, grande, zoom) {
   for (const p of pastos) {
     const st = situacaoPasto(p);
     const tip = `${nomeP(p)} · ${F.dec(p.ha, 2)} ha${p.capim ? ` · ${p.capim}` : ''} · ` + (st.ocupado ? `${st.lotes.join(', ')} há ${st.dias} dias` : st.descanso != null ? `descanso há ${st.descanso} dias` : 'sem gado');
-    formas += `<path d="${caminho(p.contorno.coordinates[0])}" class="${fundo ? 'pasto-foto' : st.ocupado ? 'pasto-oc' : 'pasto-livre'}" data-tip="${esc(tip)}"/>`;
+    const ocs = todas.filter((o) => !o.sai && (o.pasto === p.id || (o.tambem || []).includes(p.id)));
+    const tipoP = ocs.length ? tipoLote(S.idx.lotes.get(ocs[0].lote)) : null;
+    formas += `<path d="${caminho(p.contorno.coordinates[0])}" class="${fundo ? `pasto-foto${tipoP ? ` oc oc-${tipoP}` : ''}` : st.ocupado ? 'pasto-oc' : 'pasto-livre'}" data-tip="${esc(tip)}"/>`;
     const [x, y] = centro(p.contorno.coordinates[0]);
     const qx = p.contorno.coordinates[0].map((c) => P(c)[0]);
     const rot = rotuloPasto(p, Math.max(...qx) - Math.min(...qx));
-    const ocs = todas.filter((o) => !o.sai && (o.pasto === p.id || (o.tambem || []).includes(p.id)));
     if (ocs.length) {
       ocs.forEach((o, i) => {
         const lote = S.idx.lotes.get(o.lote);
@@ -479,7 +521,7 @@ function mapaFazenda(fid, grande, zoom) {
         const cab = o.cab != null ? `${o.cab}${/junto com/i.test(o.obs || '') ? '+' : ''}` : '?';
         const dx = (i - (ocs.length - 1) / 2) * 26;
         pinos += pinoSvg(x + dx, y - 3, tipo, (a, b) => vacaSvg(a, b, tipo === 'paridas'), cab,
-          `${lote ? lote.nome : 'lote'} · ${o.cab != null ? `${o.cab} cabeças${cab.endsWith('+') ? ' e mais gado junto' : ''}` : 'cabeças a confirmar'} · desde ${dtc(o.ent)}`);
+          null, todas.indexOf(o));
       });
       textos += `<text x="${x.toFixed(1)}" y="${(y + 7).toFixed(1)}" class="mapa-n" text-anchor="middle">${esc(rot.t)}</text>`;
     } else {
@@ -549,3 +591,33 @@ function definicoes() {
     tempo = setTimeout(() => { bolha.hidden = true; }, 2600);
   });
 })();
+
+// ------------------------------------------------------------------ tela do lote (toque no gado do mapa)
+function janelaLote(i) {
+  const todas = (S.dados.mapa && S.dados.mapa.ocupacoes) || S.dados.ocupacoes || [];
+  const o = todas[i];
+  if (!o) return;
+  const lote = S.idx.lotes.get(o.lote), pasto = S.idx.pastos.get(o.pasto);
+  const pastos = [pasto, ...(o.tambem || []).map((id) => S.idx.pastos.get(id))].filter(Boolean);
+  const ha = pastos.reduce((t, p) => t + (Number(p.ha) || 0), 0);
+  const bichos = S.dados.animais.filter((a) => a.st === 'ativo' && (a.lotes || []).includes(o.lote));
+  const cab = o.cab != null ? Number(o.cab) : bichos.length;
+  const ult = bichos.map((a) => { const ps = pesos(a); return ps.length ? Number(ps[ps.length - 1].p) : null; }).filter((v) => v);
+  const pm = ult.length ? ult.reduce((t, v) => t + v, 0) / ult.length : null;
+  const linha = (r, v) => `<div><dt>${esc(r)}:</dt><dd>${esc(v)}</dd></div>`;
+  const porCat = new Map();
+  for (const a of bichos) { const k = NOME_CAT[a.c] || a.c; porCat.set(k, (porCat.get(k) || 0) + 1); }
+  const cats = [...porCat.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => `<div>${n} cb · ${esc(k)}</div>`).join('')
+    || '<p class="vazio">Os animais deste lote ainda não estão cadastrados um a um.</p>';
+  abrirJanela(`<h2>${esc(lote ? lote.nome : 'Lote')} · ${esc(pastos.map(nomeP).join(' + '))}</h2>
+    <div class="abas-lote"><button data-acao="lote-aba" data-valor="resumo" aria-pressed="true">Resumo do lote</button><button data-acao="lote-aba" data-valor="cats" aria-pressed="false">Categorias</button></div>
+    <div id="lote-resumo" class="lote-res"><p class="grande">${esc(F.int(cab))}</p><p>Cabeças${/junto com/i.test(o.obs || '') ? ' (e mais gado junto)' : ''}</p><dl>
+      ${linha('Peso médio', pm ? `${F.kg(Math.round(pm))} (${ult.length} pesados)` : 'sem pesagem')}
+      ${ha ? linha('Área', `${F.dec(ha, 1)} ha`) : ''}
+      ${ha && pm ? linha('Lotação', `${F.int(Math.round((cab * pm) / ha))} kg/ha · ${F.dec((cab * pm) / 450 / ha, 1)} UA/ha`) : ha ? linha('Lotação', `${F.dec(cab / ha, 1)} cab/ha`) : ''}
+      ${pasto && pasto.capim ? linha('Capim', pasto.capim) : ''}
+      ${linha('Entrou no pasto', o.ent ? `${dtc(o.ent)} · há ${diasEntre(o.ent, hojeISO())} dias` : '—')}
+    </dl></div>
+    <div id="lote-cats" class="cats" hidden>${cats}</div>
+    ${botoesBreve([['balanca', 'Pesagem'], ['pasto', 'Mudar de pasto'], ['nasc', 'Nascimento'], ['morte', 'Morte'], ['saude', 'Vacina ou remédio'], ['curral', 'Sessão no curral']])}`);
+}
