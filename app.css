@@ -153,6 +153,7 @@ button { font: inherit; color: inherit; }
 .btn { border: 0; border-radius: 14px; padding: 15px 18px; font-size: 17px; font-weight: 650; background: var(--acento); color: var(--sobre-acento);
   cursor: pointer; width: 100%; }
 .btn:disabled { opacity: .55; }
+.btn svg { width: 22px; height: 22px; vertical-align: -5px; margin-right: 8px; }
 .btn.sec { background: var(--cartao); color: var(--texto); border: 1px solid var(--linha); }
 .btn.perigo { background: color-mix(in srgb, var(--ruim) 14%, var(--cartao)); color: var(--ruim); border: 1px solid color-mix(in srgb, var(--ruim) 40%, var(--linha)); }
 .erro { margin: 0; color: var(--ruim); font-size: 14.5px; font-weight: 500; }
@@ -452,7 +453,8 @@ button { font: inherit; color: inherit; }
 
 /* 2B: vacina/remédio, salga e modo Curral (app 2.3) */
 .opcao:disabled { opacity: .5; cursor: default; }
-.acoes-item { display: flex; gap: 14px; flex-shrink: 0; }
+.acoes-item { display: flex; gap: 28px; flex-shrink: 0; }
+.acoes-item .link { padding: 8px 2px; }
 .curral-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .curral-t { margin: 0; font-size: 18px; font-weight: 800; }
 .curral-s { margin: 2px 0 0; font-size: 13px; color: var(--apagado); }

@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.3 · 25/11/2026';
+const VERSAO_APP = '2.4 · 25/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -605,11 +605,11 @@ function telaListas() {
 const LANCAR = [['balanca', 'Pesagem'], ['pasto', 'Mudar de pasto'], ['nasc', 'Nascimento'], ['saude', 'Vacina ou remédio'],
   ['morte', 'Morte'], ['curral', 'Sessão no curral'], ['chuva', 'Chuva'], ['peso', 'Salga de cocho'], ['repro', 'Protocolo IATF']];
 const botoesBreve = (lista) => `<div class="botoes">${lista.map(([ic, t]) => `<div class="botao breve">${I[ic]}<span>${esc(t)}</span><small>em breve</small></div>`).join('')}</div>`;
-function abrirJanela(html) {
+function abrirJanela(html, textoFechar = 'Fechar') {
   $('.fundo')?.remove();
   const el = document.createElement('div');
   el.className = 'fundo';
-  el.innerHTML = `<div class="janela" role="dialog" aria-modal="true">${html}<button class="btn sec" data-acao="fechar">Fechar</button></div>`;
+  el.innerHTML = `<div class="janela" role="dialog" aria-modal="true">${html}<button class="btn sec" data-acao="fechar">${textoFechar}</button></div>`;
   document.body.appendChild(el);
   return el;
 }

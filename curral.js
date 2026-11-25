@@ -99,8 +99,9 @@ FORMS.curral = function (r) {
       const nao = (x.n || []).map((id) => nomes.get(id)).filter(Boolean);
       return `<div class="item item-fixo"><span><span class="item-t">${esc(a ? a.n : '?')} · ${x.m.length} de ${r.on.length} etapas${x.kg ? ` · ${esc(kg(x.kg))}` : ''}</span>
         <span class="item-m${nao.length || x.aviso ? ' aviso-t' : ''}">${esc([nao.length ? `⚠️ não fez: ${nao.join(', ')}` : null, x.aviso ? `⚠️ ${x.aviso}` : null, x.obs].filter(Boolean).join(' · ') || (a ? resumo(a) : ''))}</span></span>
-        <span class="acoes-item"><button class="link" data-acao="c-corrigir" data-valor="${x.a}">corrigir</button>
-        <button class="link perigo-t" data-acao="c-tirar" data-valor="${x.a}">tirar</button></span></div>`; }).join('')}</div></div>` : ''}
+        ${r.editando === x.a ? '<span class="acoes-item"><b class="aviso-t">✏️ corrigindo</b></span>'
+          : `<span class="acoes-item"><button class="link" data-acao="c-corrigir" data-valor="${x.a}">corrigir</button>
+        <button class="link perigo-t" data-acao="c-tirar" data-valor="${x.a}">tirar</button></span>`}</div>`; }).join('')}</div></div>` : ''}
     <button class="btn" data-acao="l-revisar" ${itens.length ? '' : 'disabled'}>Terminar e revisar</button>`;
 };
 
@@ -110,7 +111,8 @@ function cartaoCurral(r) {
   const a = acharAnimal(r.num);
   if (!a) return '<p class="achado nao">Não achei esse número no rebanho.</p>';
   if (a.f !== r.f) return `<p class="achado nao">A ${esc(a.n)} é da ${esc(faz(a.f).codigo)}. Este manejo é da ${esc(faz(r.f).codigo)}.</p>`;
-  if ((r.itens || []).some((x) => x.a === a.id)) {
+  const corrigindo = r.editando === a.id && (r.itens || []).some((x) => x.a === a.id);
+  if (!corrigindo && (r.itens || []).some((x) => x.a === a.id)) {
     return `<p class="achado aviso-t">A ${esc(a.n)} já passou nesta sessão. <button class="link" data-acao="c-corrigir" data-valor="${a.id}">corrigir</button></p>`;
   }
   if (naFila(a.id, r)) return `<p class="achado aviso-t">A ${esc(a.n)} já foi lançada numa sessão que está esperando envio.</p>`;
@@ -128,12 +130,13 @@ function cartaoCurral(r) {
   }).join('');
   const nSel = sel.filter((id) => abertas.includes(id)).length;
   return `<div class="bloco curral-animal">
+    ${corrigindo ? `<p class="achado aviso-t">✏️ Corrigindo a ${esc(a.n)}. Mude o que precisar e toque em <b>Pronto</b>. Se desistir, ela continua na lista como estava.</p>` : ''}
     <p class="achado sim"><b>${esc(a.n)}</b> · ${esc(resumo(a))}</p>
     <div class="chips quebra">${chips}</div>
     <p class="nota">${nSel === abertas.length ? 'Todas as etapas feitas. Se alguma não foi feita, toque nela para desmarcar.' : `⚠️ ${abertas.length - nSel} etapa(s) desmarcada(s): vai como não feita.`}</p>
     ${r.pesar ? `<label class="campo"><span>Peso (kg)</span><input id="c-kg" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(r.kgTxt || '')}" placeholder="kg"></label>` : ''}
     <label class="campo"><span>Observação</span><input id="c-obs" autocomplete="off" enterkeyhint="done" value="${esc(r.obsTxt || '')}" placeholder="opcional (ex.: perdeu o implante)"></label>
-    <button class="btn" data-acao="c-add">${I.ok}Pronto · próximo</button></div>`;
+    <button class="btn" data-acao="c-add">${I.ok}${corrigindo ? 'Pronto · guardar a correção' : 'Pronto · próximo'}</button></div>`;
 }
 
 MONTAR.curral = function (r) {
@@ -170,7 +173,8 @@ MONTAR.curral = function (r) {
 // ------------------------------------------------------------------ toques, digitação e Enter do modo Curral
 function curralPorNaLista(r) {
   const a = acharAnimal(r.num || '');
-  if (!a || a.f !== r.f || (r.itens || []).some((x) => x.a === a.id) || naFila(a.id, r) || !noProtocolo(a, r)) {
+  const corrigindo = a && r.editando === a.id;
+  if (!a || a.f !== r.f || (!corrigindo && (r.itens || []).some((x) => x.a === a.id)) || naFila(a.id, r) || !noProtocolo(a, r)) {
     avisar(a ? 'Esse animal não pode entrar. Veja o aviso embaixo do número.' : 'Não achei esse número no rebanho.');
     return false;
   }
@@ -185,8 +189,9 @@ function curralPorNaLista(r) {
     pkg = Math.round(pkg * 10) / 10;
   }
   if (!m.length && !n.length && !pkg) { avisar('Nada para lançar nesse animal.'); return false; }
-  r.itens = [...(r.itens || []), { a: a.id, m, n, ...(pkg ? { kg: pkg, aviso: avisoPeso(a, pkg, r.data) } : {}), ...((r.obsTxt || '').trim() ? { obs: r.obsTxt.trim() } : {}) }];
-  r.num = ''; r.kgTxt = ''; r.obsTxt = ''; r.sel = null;
+  const novo = { a: a.id, m, n, ...(pkg ? { kg: pkg, aviso: avisoPeso(a, pkg, r.data) } : {}), ...((r.obsTxt || '').trim() ? { obs: r.obsTxt.trim() } : {}) };
+  r.itens = corrigindo ? r.itens.map((x) => (x.a === a.id ? novo : x)) : [...(r.itens || []), novo];
+  r.num = ''; r.kgTxt = ''; r.obsTxt = ''; r.sel = null; r.editando = null;
   return true;
 }
 
@@ -212,7 +217,7 @@ document.addEventListener('click', (ev) => {
       return;
     }
   }
-  if (acao === 'c-trocar' || acao === 'c-trocar-sim') { $('.fundo')?.remove(); return mexer((r) => { r.mjs = null; r.itens = []; r.num = ''; r.sel = null; }); }
+  if (acao === 'c-trocar' || acao === 'c-trocar-sim') { $('.fundo')?.remove(); return mexer((r) => { r.mjs = null; r.itens = []; r.num = ''; r.sel = null; r.editando = null; }); }
   if (acao === 'c-sessao') return mexer((r) => {
     if ((r.itens || []).length) return;
     const id = Number(v);
@@ -235,14 +240,33 @@ document.addEventListener('click', (ev) => {
     if (ok) setTimeout(() => $('#c-num')?.focus(), 30);
     return;
   }
-  if (acao === 'c-tirar') return mexer((r) => { r.itens = (r.itens || []).filter((x) => x.a !== Number(v)); });
-  if (acao === 'c-corrigir') {
+  // trava (pedido do produtor, 25/11): "tirar" e "corrigir" só depois de confirmar, para um toque errado não mexer na lista
+  if (acao === 'c-tirar' || acao === 'c-corrigir') {
+    const a = S.idx.porId.get(Number(v));
+    if (!a) return;
+    const tirar = acao === 'c-tirar';
+    abrirJanela(tirar
+      ? `<h2>Tirar a ${esc(a.n)} da lista?</h2><p>Ela ainda não foi enviada. Se tirar, o que foi marcado nela nesta sessão sai do celular e ela volta para "faltam".</p>
+        <button class="btn perigo" data-acao="c-tirar-sim" data-valor="${a.id}">Sim, tirar a ${esc(a.n)}</button>`
+      : `<h2>Corrigir a ${esc(a.n)}?</h2><p>Ela continua na lista como está. Lá em cima você muda o que precisar e toca em <b>Pronto</b>: só então a correção vale.</p>
+        <button class="btn" data-acao="c-corrigir-sim" data-valor="${a.id}">Sim, corrigir a ${esc(a.n)}</button>`, 'Não, manter como está');
+    return;
+  }
+  if (acao === 'c-tirar-sim') {
+    $('.fundo')?.remove();
+    return mexer((r) => {
+      r.itens = (r.itens || []).filter((x) => x.a !== Number(v));
+      if (r.editando === Number(v)) { r.editando = null; r.num = ''; r.sel = null; r.kgTxt = ''; r.obsTxt = ''; }
+    });
+  }
+  if (acao === 'c-corrigir-sim') {
+    $('.fundo')?.remove();
     mexer((r) => {
       const x = (r.itens || []).find((y) => y.a === Number(v));
       const a = S.idx.porId.get(Number(v));
       if (!x || !a) return;
-      r.itens = r.itens.filter((y) => y !== x);
-      // volta para o cartão com o que estava marcado (as não feitas ficam desmarcadas)
+      // o animal fica na lista; o cartão abre com o que estava marcado (as não feitas ficam desmarcadas)
+      r.editando = a.id;
       r.num = a.n; r.sel = { a: a.id, m: x.m }; r.kgTxt = x.kg ? String(x.kg).replace('.', ',') : ''; r.obsTxt = x.obs || '';
       if (x.kg) r.pesar = true;
     });
