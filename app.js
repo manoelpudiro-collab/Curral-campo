@@ -778,7 +778,12 @@ document.addEventListener('keydown', (ev) => {
 window.addEventListener('hashchange', () => { $('.fundo')?.remove(); desenhar(); });
 window.addEventListener('online', () => { S.online = true; desenharTopo(); if (precisaAtualizar()) atualizar(); });
 window.addEventListener('offline', () => { S.online = false; desenharTopo(); });
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && precisaAtualizar()) atualizar(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (precisaAtualizar()) atualizar();
+  // ao voltar para o app, confere se há versão nova das telas
+  if (navigator.serviceWorker) navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {});
+});
 
 // ------------------------------------------------------------------ início
 (function iniciar() {
@@ -789,7 +794,8 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (S.tinhaControlador) avisar('O app foi atualizado. Feche e abra de novo para ver as novidades.');
+      // versão nova chegou: recarrega sozinho (o app só mostra dados, não há nada digitado para perder)
+      if (S.tinhaControlador && !S.recarregando) { S.recarregando = true; location.reload(); return; }
       S.tinhaControlador = true;
     });
   }
