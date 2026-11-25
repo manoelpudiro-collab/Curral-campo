@@ -172,6 +172,7 @@ function pintarBarras(raiz = document) {
   for (const b of raiz.querySelectorAll('.heroi-faz .barra')) { b.style.setProperty('--p', `${b.dataset.p}%`); b.style.setProperty('--cor', b.dataset.c); }
 }
 function anel(rotulo, v, chave, neutro) {
+  // neutro: true = 'antes da IATF'; texto = o motivo (ex.: natalidade acima de 100% porque faltam vacas no cadastro)
   const m = META[chave], C = 2 * Math.PI * 40;
   const bom = v != null && (m.tipo === 'min' ? v >= m.alvo : v <= m.alvo);
   const est = v == null || neutro ? 'neutro' : bom ? 'ok' : 'atencao';
@@ -179,7 +180,7 @@ function anel(rotulo, v, chave, neutro) {
   return `<div class="anel ${est}"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="40" class="an-fundo"/>
     <circle cx="50" cy="50" r="40" class="an-arco" stroke-dasharray="${(fr * C).toFixed(1)} ${C.toFixed(1)}"/>
     <text x="50" y="57" text-anchor="middle" class="an-v">${esc(v == null ? '—' : F.pct(v))}</text></svg>
-    <p>${esc(rotulo)}</p><small>${esc(m.texto)} · <b>${esc(neutro ? 'antes da IATF' : bom ? 'na meta' : 'fora')}</b></small></div>`;
+    <p>${esc(rotulo)}</p><small>${esc(m.texto)} · <b>${esc(neutro ? (typeof neutro === 'string' ? neutro : 'antes da IATF') : bom ? 'na meta' : 'fora')}</b></small></div>`;
 }
 const ATALHOS = [['rebanho', 'Rebanho', '#painel/rebanho'], ['repro', 'Reprodução', '#painel/reproducao'], ['peso', 'Desempenho', '#painel/desempenho'],
   ['pasto', 'Mapa e pastos', '#painel/campo'], ['agenda', 'Agenda', '#agenda'], ['listas', 'Listas', '#listas'],
@@ -187,6 +188,7 @@ const ATALHOS = [['rebanho', 'Rebanho', '#painel/rebanho'], ['repro', 'Reproduç
 function telaInicio() {
   const r = P1('resumo');
   const neutroP = Number(r.prenhas_ultimo_dg) > 0 && Number(r.prenhas_touro) >= Number(r.prenhas_ultimo_dg);
+  const natInflada = r.natalidade_pct != null && Number(r.natalidade_pct) > 100;
   const fz = P('fazendas');
   const fazC = (cod, nome) => { const f = fz.find((x) => x.fazenda === cod) || {};
     return `<div class="faz-c"><small>${esc(nome)}</small><b>${esc(F.int(f.cabecas))}</b><span>${esc(F.int(f.nascimentos_12m))} nasc. · ${esc(F.int(f.mortes_12m))} mortes (12 m)</span></div>`; };
@@ -196,8 +198,9 @@ function telaInicio() {
       <button class="busca-faixa" data-ir="#buscar">${I.busca}<span>Buscar animal pelo número</span></button></div>
     ${Number(r.pendencias) > 0 ? `<div class="dica"><b>${esc(F.int(r.pendencias))} recado(s) do bot esperando conferência</b><span>Peça ao Claude: “confere as pendências do bot”.</span></div>` : ''}
     <h2 class="titulo-secao">Sua gestão</h2>
-    <div class="bloco"><div class="aneis">${anel('Prenhez', r.taxa_prenhez_pct == null ? null : Number(r.taxa_prenhez_pct), 'prenhez', neutroP)}${anel('Natalidade', r.natalidade_pct == null ? null : Number(r.natalidade_pct), 'natalidade')}${anel('Mortalidade', r.mortalidade_pct == null ? null : Number(r.mortalidade_pct), 'mortalidade')}</div>
-      <p class="nota">Prenhez do último diagnóstico (${esc(F.int(r.prenhas_ultimo_dg))} de ${esc(F.int(r.diagnosticadas))}); natalidade e mortalidade dos últimos 12 meses.</p></div>
+    <div class="bloco"><div class="aneis">${anel('Prenhez', r.taxa_prenhez_pct == null ? null : Number(r.taxa_prenhez_pct), 'prenhez', neutroP)}${anel('Natalidade', r.natalidade_pct == null ? null : Number(r.natalidade_pct), 'natalidade', natInflada && 'acima do real')}${anel('Mortalidade', r.mortalidade_pct == null ? null : Number(r.mortalidade_pct), 'mortalidade')}</div>
+      <p class="nota">Prenhez do último diagnóstico (${esc(F.int(r.prenhas_ultimo_dg))} de ${esc(F.int(r.diagnosticadas))}); natalidade e mortalidade dos últimos 12 meses.</p>
+      ${natInflada ? `<p class="nota aviso-nat"><b>Natalidade acima de 100%:</b> ainda faltam vacas no cadastro (na MD, só as que pariram foram lançadas). O número corrige quando todas as vacas entrarem no sistema.</p>` : ''}</div>
     <div class="duas">${fazC('3C', 'Três Corações · 3C')}${fazC('MD', 'Fazenda MD')}</div>
     <div class="kpis">${kpi('Cabeças', F.int(r.cabecas), `${esc(F.int(r.matrizes))} matrizes · ${esc(F.int(r.novilhas))} novilhas · ${esc(F.int(r.bezerros))} bezerros`)}
       ${dono() ? kpi('Resultado do ano', F.brl(r.resultado_ano), `gastos ${esc(F.brl(r.gasto_ano))}`) : kpi('Nascimentos · 12 meses', F.int(r.nascimentos_12m), '')}</div>
@@ -456,22 +459,23 @@ function tipoLote(l) {
   return 'gado';
 }
 // vaca de lado (desenho próprio), com bezerro quando o lote é de paridas
-const vacaSvg = (x, y, bezerro) => `<g class="vaca" transform="translate(${(x + 0.6).toFixed(2)},${(y - 0.6).toFixed(2)}) scale(0.19)">
+const vacaSvg = (x, y, bezerro) => `<g class="vaca" transform="translate(${(x + 0.9).toFixed(2)},${(y - 0.9).toFixed(2)}) scale(0.28)">
   <rect x="-22" y="-8" width="36" height="18" rx="8"/><polygon points="10,-6 24,-12 28,-2 16,4"/><polygon points="22,-12 26,-18 25,-10"/>
   <rect x="-18" y="8" width="4" height="12"/><rect x="-10" y="8" width="4" height="12"/><rect x="4" y="8" width="4" height="12"/><rect x="10" y="8" width="4" height="12"/>
   <polygon points="-23,-7 -21,-5 -26,9 -28,8"/>
   ${bezerro ? '<rect x="-31" y="2" width="16" height="10" rx="4" class="bez"/><rect x="-29" y="11" width="3" height="8"/><rect x="-19" y="11" width="3" height="8"/>' : ''}</g>`;
-const cochoSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.2)"><rect x="-30" y="-9" width="60" height="24" rx="4"/><line x1="-27" y1="15" x2="-33" y2="27"/><line x1="27" y1="15" x2="33" y2="27"/></g>`;
-const curralSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.2)"><line x1="-30" y1="-9" x2="30" y2="-9"/><line x1="-30" y1="9" x2="30" y2="9"/><line x1="-24" y1="-21" x2="-24" y2="21"/><line x1="0" y1="-21" x2="0" y2="21"/><line x1="24" y1="-21" x2="24" y2="21"/></g>`;
+const cochoSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.27)"><rect x="-30" y="-9" width="60" height="24" rx="4"/><line x1="-27" y1="15" x2="-33" y2="27"/><line x1="27" y1="15" x2="33" y2="27"/></g>`;
+const curralSvg = (x, y) => `<g class="traco" transform="translate(${x.toFixed(2)},${y.toFixed(2)}) scale(0.27)"><line x1="-30" y1="-9" x2="30" y2="-9"/><line x1="-30" y1="9" x2="30" y2="9"/><line x1="-24" y1="-21" x2="-24" y2="21"/><line x1="0" y1="-21" x2="0" y2="21"/><line x1="24" y1="-21" x2="24" y2="21"/></g>`;
 function pinoSvg(x, y, cls, miolo, rotulo, tip, ocup) {
-  const R = 9, cy = y - R - 5, lb = rotulo ? Math.max(9, 4.2 * String(rotulo).length + 4) : 0;
+  // gado maior no mapa (25/11): mais fácil de ver e de tocar com o dedo
+  const R = 13, cy = y - R - 6, lb = rotulo ? Math.max(13, 5.8 * String(rotulo).length + 6) : 0;
   return `<g class="pino pc-${cls}" ${ocup != null ? `data-ocup="${ocup}"` : `data-tip="${esc(tip)}"`}>
-    <path d="M${(x - 4.6).toFixed(2)},${(cy + R - 1.6).toFixed(2)}L${x.toFixed(2)},${y.toFixed(2)}L${(x + 4.6).toFixed(2)},${(cy + R - 1.6).toFixed(2)}Z" class="pino-cor"/>
+    <path d="M${(x - 6.4).toFixed(2)},${(cy + R - 2.2).toFixed(2)}L${x.toFixed(2)},${y.toFixed(2)}L${(x + 6.4).toFixed(2)},${(cy + R - 2.2).toFixed(2)}Z" class="pino-cor"/>
     <circle cx="${x.toFixed(2)}" cy="${cy.toFixed(2)}" r="${R}" class="pino-cor"/>
-    <circle cx="${x.toFixed(2)}" cy="${cy.toFixed(2)}" r="${R - 1.8}" class="pino-miolo"/>
+    <circle cx="${x.toFixed(2)}" cy="${cy.toFixed(2)}" r="${R - 2.4}" class="pino-miolo"/>
     ${miolo(x, cy)}
-    ${rotulo ? `<rect x="${(x + R - 3).toFixed(2)}" y="${(cy - R - 1).toFixed(2)}" width="${lb.toFixed(2)}" height="9" rx="4.5" class="pino-cor selo"/>
-      <text x="${(x + R - 3 + lb / 2).toFixed(2)}" y="${(cy - R + 5.6).toFixed(2)}" class="pino-n" text-anchor="middle">${esc(rotulo)}</text>` : ''}</g>`;
+    ${rotulo ? `<rect x="${(x + R - 5).toFixed(2)}" y="${(cy - R - 2).toFixed(2)}" width="${lb.toFixed(2)}" height="12" rx="6" class="pino-cor selo"/>
+      <text x="${(x + R - 5 + lb / 2).toFixed(2)}" y="${(cy - R + 6.9).toFixed(2)}" class="pino-n" text-anchor="middle">${esc(rotulo)}</text>` : ''}</g>`;
 }
 function mapaFazenda(fid, grande, zoom) {
   const z = zoom || 1;
@@ -519,7 +523,7 @@ function mapaFazenda(fid, grande, zoom) {
         const lote = S.idx.lotes.get(o.lote);
         const tipo = tipoLote(lote);
         const cab = o.cab != null ? `${o.cab}${/junto com/i.test(o.obs || '') ? '+' : ''}` : '?';
-        const dx = (i - (ocs.length - 1) / 2) * 26;
+        const dx = (i - (ocs.length - 1) / 2) * 36;
         pinos += pinoSvg(x + dx, y - 3, tipo, (a, b) => vacaSvg(a, b, tipo === 'paridas'), cab,
           null, todas.indexOf(o));
       });

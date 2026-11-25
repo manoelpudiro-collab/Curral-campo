@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.0 · 25/11/2026';
+const VERSAO_APP = '2.1 · 25/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -99,6 +99,8 @@ const I = {
   morte: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v18M6 9h12"/></svg>',
   nasc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="3.5"/><path d="M5 21c1-4 3.8-6.5 7-6.5s6 2.5 7 6.5"/></svg>',
   chuva: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 15a4 4 0 0 1-.5-8A5.5 5.5 0 0 1 17 6.5 4 4 0 0 1 17 15H7Z"/><path d="M8 18l-1 2M12 18l-1 2M16 18l-1 2"/></svg>',
+  bezerro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9.5 7.6 14c0 3 2 5.5 4.4 5.5s4.4-2.5 4.4-5.5L16 9.5"/><path d="M8 9.5c-1.6 0-3-.8-3.6-2.2M16 9.5c1.6 0 3-.8 3.6-2.2M8 9.5c1-1.2 2.4-1.8 4-1.8s3 .6 4 1.8"/><circle cx="10" cy="12.5" r=".6" fill="currentColor"/><circle cx="14" cy="12.5" r=".6" fill="currentColor"/></svg>',
+  touro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4c.5 3 2.5 4.5 5 4.5h8c2.5 0 4.5-1.5 5-4.5"/><path d="M7.5 8.5 7 14c0 3 2 6 5 6s5-3 5-6l-.5-5.5"/><path d="M10 17h4"/><circle cx="9.5" cy="12" r=".6" fill="currentColor"/><circle cx="14.5" cy="12" r=".6" fill="currentColor"/></svg>',
   pasto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 20h18M6 20c0-4 1-7 3-9M12 20c0-5 0-8 1-11M18 20c0-4-1-6-3-8"/></svg>',
 };
 
@@ -349,18 +351,17 @@ function telaAnimal(id) {
   return `<section class="pagina">
     <button class="voltar" data-acao="voltar">${I.voltar}Voltar</button>
     <div class="ficha-id">
-      <p class="ficha-num">${esc(a.n)}</p>
-      <p class="ficha-sub">${esc([NOME_CAT[a.c] || a.c, a.s === 'F' ? 'fêmea' : a.s === 'M' ? 'macho' : null, f.nome].filter(Boolean).join(' · '))}${a.b ? ` · brinco ${esc(a.b)}` : ''}</p>
+      <div class="ficha-cab">${iconeCat(a.c)}<div><p class="ficha-num${a.n.length > 5 ? ' longo' : ''}">${esc(a.n)}</p><p class="ficha-cat cat-${esc(a.c || 'x')}">${esc(NOME_CAT[a.c] || a.c || 'Animal')}</p></div></div>
+      <p class="ficha-sub">${esc([a.s === 'F' ? 'fêmea' : a.s === 'M' ? 'macho' : null, f.nome].filter(Boolean).join(' · '))}${a.b ? ` · brinco ${esc(a.b)}` : ''}</p>
       <div class="selos">${selos.join('')}</div>
     </div>
     <div class="numeros">${nums.map(([l, v, s]) => `<div class="numero"><p class="numero-l">${esc(l)}</p><p class="numero-v">${esc(v)}</p><p class="numero-s">${esc(s)}</p></div>`).join('')}</div>
     ${blocoReproducao(a)}
+    ${blocoTempo(a)}
     ${blocoFamilia(a)}
     ${blocoLoteEPasto(a)}
     ${blocoPeso(a, ps)}
-    ${blocoSanidade(a)}
     ${blocoCusto(a)}
-    ${blocoHistorico(a)}
     ${a.obs ? `<div class="bloco"><h2 class="h2">Observação</h2><p class="nota">${esc(a.obs)}</p></div>` : ''}
   </section>`;
 }
@@ -442,32 +443,16 @@ function blocoLoteEPasto(a) {
 
 function blocoPeso(a, ps) {
   if (!ps.length) return '';
-  const linhas = ps.slice(-6).reverse().map((e, i, arr) => {
-    const ant = arr[i + 1];
-    let gmd = '';
-    if (ant) {
-      const d = diasEntre(ant.d, e.d);
-      if (d > 0) gmd = ` · ${((e.p - ant.p) / d * 1000).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} g/dia`;
-    }
-    return `<li><time>${esc(dt(e.d))}</time><span><b>${esc(kg(e.p))}</b>${esc(gmd)}</span></li>`;
-  }).join('');
-  const ultimo = ps[ps.length - 1];
+  const ultimo = ps[ps.length - 1], ant = ps[ps.length - 2];
+  const linhas = [['Último', `${kg(ultimo.p)} em ${dt(ultimo.d)} · ${(Number(ultimo.p) / 30).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} @`]];
+  const g = ant ? gmd(ant, ultimo) : null;
+  if (g !== null) linhas.push(['Ganho', `${g.toLocaleString('pt-BR')} g/dia desde ${dtc(ant.d)} (${kg(ultimo.p - ant.p)} em ${diasEntre(ant.d, ultimo.d)} dias)`]);
+  if (ps.length > 2) linhas.push(['Desde a 1ª pesagem', `${kg(ultimo.p - ps[0].p)} em ${diasEntre(ps[0].d, ultimo.d)} dias`]);
+  linhas.push(['Pesagens', String(ps.length)]);
   return `<div class="bloco"><h2 class="h2">${I.peso}Peso</h2>
-    <p class="nota">Último: <b>${esc(kg(ultimo.p))}</b> em ${esc(dt(ultimo.d))} · ${esc((Number(ultimo.p) / 30).toLocaleString('pt-BR', { maximumFractionDigits: 1 }))} @</p>
-    <ul class="historico">${linhas}</ul></div>`;
+    <dl class="linhas">${linhas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>`;
 }
-
-function blocoSanidade(a) {
-  const soltas = (S.idx.aplic.get(a.id) || []).filter((x) => !x.m.prot);
-  const trat = (S.idx.eventos.get(a.id) || []).filter((e) => e.t === 'tratamento' || e.t === 'doenca');
-  if (!soltas.length && !trat.length) return '';
-  const itens = [
-    ...soltas.map((x) => ({ d: x.data, t: x.prod || x.m.prod || NOME_ETAPA[x.m.etapa], s: x.st === 'aplicado' ? 'aplicado' : x.st })),
-    ...trat.map((e) => ({ d: e.d, t: e.prod || e.diag || NOME_EVENTO[e.t], s: e.dose || NOME_EVENTO[e.t] })),
-  ].sort((x, y) => (y.d || '').localeCompare(x.d || ''));
-  return `<div class="bloco"><h2 class="h2">${I.saude}Sanidade</h2>
-    <ul class="historico">${itens.map((x) => `<li><time>${esc(dt(x.d))}</time><span><b>${esc(x.t)}</b> · ${esc(x.s)}</span></li>`).join('')}</ul></div>`;
-}
+const gmd = (ant, e) => { const d = diasEntre(ant.d, e.d); return d > 0 ? Math.round((e.p - ant.p) / d * 1000) : null; };
 
 function blocoCusto(a) {
   if (!dono() || !S.dados.custos) return '';
@@ -480,25 +465,100 @@ function blocoCusto(a) {
     ${partes.length ? `<dl class="linhas">${partes.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(brl(v))}</dd>`).join('')}</dl>` : ''}</div>`;
 }
 
-function blocoHistorico(a) {
-  const evs = (S.idx.eventos.get(a.id) || []).slice().sort((x, y) => y.d.localeCompare(x.d));
-  if (!evs.length) return '';
-  const desc = (e) => {
-    if (e.t === 'pesagem') return kg(e.p);
-    if (e.t === 'diagnostico_gestacao') return [e.dg === 'positivo' ? 'prenha' : e.dg === 'negativo' ? 'vazia' : e.dg, e.ig ? `${e.ig} dias` : null].filter(Boolean).join(', ');
-    if (e.t === 'nascimento') return [e.aprox ? 'data aproximada' : null, e.gest === 'antes_do_tempo' ? 'antes do tempo' : e.gest === 'depois_do_previsto' ? 'depois do previsto' : null].filter(Boolean).join(', ');
-    if (e.t === 'morte') return e.diag || e.causa || '';
-    return e.diag || e.prod || '';
-  };
-  return `<div class="bloco"><h2 class="h2">${I.hist}Histórico</h2>
-    <ul class="historico">${evs.slice(0, 20).map((e) => {
-      const d = desc(e);
-      return `<li><time>${esc(dt(e.d))}</time><span><b>${esc(NOME_EVENTO[e.t] || e.t)}</b>${d ? ` · ${esc(d)}` : ''}</span></li>`;
-    }).join('')}</ul></div>`;
+// linha do tempo única: tudo o que aconteceu com o animal, do mais novo para o mais velho, e o que vem a seguir
+const CAT_IC = { bezerro: 'bezerro', bezerra: 'bezerro', touro: 'touro', boi: 'touro', garrote: 'touro' };
+const iconeCat = (c) => `<span class="ficha-ic cat-${esc(c || 'x')}" aria-hidden="true">${I[CAT_IC[c] || 'rebanho']}</span>`;
+function itensDoTempo(a) {
+  const itens = [];
+  const add = (d, tipo, ic, t, s, ir) => { if (d) itens.push({ d, tipo, ic, t, s: s || '', ir }); };
+  const evs = S.idx.eventos.get(a.id) || [];
+  const nascEv = evs.find((e) => e.t === 'nascimento');
+  const gestTxt = (e) => (e && e.gest === 'antes_do_tempo' ? 'parto antes do tempo' : e && e.gest === 'depois_do_previsto' ? 'parto depois do previsto' : null);
+  // nascimento do próprio animal
+  const nasc = a.nasc || (nascEv && nascEv.d);
+  if (nasc) {
+    const mae = a.mae ? S.idx.porId.get(a.mae) : null;
+    add(nasc, 'nasc', 'nasc', 'Nasceu', [mae ? `mãe ${mae.n}` : null, nascEv && nascEv.aprox ? 'data aproximada' : null, gestTxt(nascEv)].filter(Boolean).join(' · '));
+  }
+  // pesagens com o ganho desde a anterior
+  const ps = pesos(a);
+  ps.forEach((e, i) => {
+    const g = i ? gmd(ps[i - 1], e) : null;
+    add(e.d, 'peso', 'balanca', `Pesagem · ${kg(e.p)}`, g !== null ? `${g > 0 ? '+' : ''}${g.toLocaleString('pt-BR')} g/dia desde ${dtc(ps[i - 1].d)}`
+      : `${(Number(e.p) / 30).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} @`);
+  });
+  // etapas de protocolo e aplicações soltas que foram feitas (ou que falharam)
+  const apl = S.idx.aplic.get(a.id) || [];
+  const iaFeita = new Set();
+  for (const x of apl) {
+    if (x.st === 'previsto') continue;
+    const prod = x.prod || x.m.prod;
+    const nome = `${NOME_ETAPA[x.m.etapa] || x.m.etapa}${prod && prod !== 'IATF' ? ` · ${prod}` : ''}`;
+    const falhou = x.st === 'falhou' || x.st === 'nao_aplicado';
+    if (x.m.etapa === 'inseminacao' && !falhou) iaFeita.add(x.apl || x.data);
+    if (x.m.prot) {
+      const p = S.idx.prot.get(x.m.prot);
+      const d = diaProt(p, x.data);
+      add(x.apl || x.data, falhou ? 'falhou' : 'prot', falhou ? 'x' : 'repro', nome + (falhou ? ' · não aplicado' : ''),
+        [p ? p.nome : null, d !== null ? rotuloDia(d) : null, x.dose || x.m.dose, x.obs].filter(Boolean).join(' · '));
+    } else {
+      add(x.apl || x.data, falhou ? 'falhou' : 'san', falhou ? 'x' : 'saude', nome + (falhou ? ' · não aplicado' : ''), [x.dose || x.m.dose, x.obs].filter(Boolean).join(' · '));
+    }
+  }
+  // eventos (diagnóstico, doença, tratamento, morte, venda…)
+  for (const e of evs) {
+    if (e.t === 'pesagem' || e.t === 'nascimento') continue;
+    if (e.t === 'inseminacao' && iaFeita.has(e.d)) continue;
+    if (e.t === 'diagnostico_gestacao') {
+      const res = e.dg === 'positivo' ? 'prenha' : e.dg === 'negativo' ? 'vazia' : e.dg || '—';
+      add(e.d, 'dg', 'repro', `Diagnóstico de gestação · ${res}`,
+        [e.mom === 'pre-protocolo' ? 'antes do protocolo' : null, e.ig ? `${e.ig} dias de gestação` : null, e.touro ? `touro ${e.touro}` : null].filter(Boolean).join(' · '));
+    } else if (e.t === 'morte') add(e.d, 'morte', 'morte', 'Morte', e.diag || e.causa || '');
+    else if (e.t === 'tratamento' || e.t === 'doenca') add(e.d, 'san', 'saude', `${NOME_EVENTO[e.t]}${e.diag ? ` · ${e.diag}` : ''}`, [e.prod, e.dose].filter(Boolean).join(' · '));
+    else add(e.d, 'outro', 'hist', NOME_EVENTO[e.t] || e.t, e.diag || e.prod || '');
+  }
+  // crias
+  for (const f of S.idx.filhos.get(a.id) || []) {
+    const ev = (S.idx.eventos.get(f.id) || []).find((e) => e.t === 'nascimento');
+    add(f.nasc || (ev && ev.d), 'cria', 'familia', `Pariu ${f.c === 'bezerra' || f.s === 'F' ? 'uma bezerra' : 'um bezerro'}`,
+      [f.n, ev && ev.aprox ? 'data aproximada' : null, gestTxt(ev)].filter(Boolean).join(' · '), `#animal/${f.id}`);
+  }
+  itens.sort((x, y) => y.d.localeCompare(x.d));
+  return itens;
+}
+function itemTempo(x, futuro) {
+  const quando = futuro ? `${dt(x.d)} · ${relativo(x.d)}` : dt(x.d);
+  const corpo = `<span class="tempo-ic">${I[x.ic] || I.hist}</span><span class="tempo-c"><span class="tempo-d">${esc(quando)}</span>
+    <span class="tempo-t">${esc(x.t)}</span>${x.s ? `<span class="tempo-s">${esc(x.s)}</span>` : ''}</span>`;
+  return `<li class="t-${esc(x.tipo)}${futuro ? ' futuro' : ''}">${x.ir ? `<button class="tempo-b" data-ir="${esc(x.ir)}">${corpo}${I.seta}</button>` : `<div class="tempo-l">${corpo}</div>`}</li>`;
+}
+function blocoTempo(a) {
+  const itens = itensDoTempo(a);
+  const futuros = [];
+  if (a.st === 'ativo') {
+    const prox = proximaEtapa(a);
+    if (prox) {
+      const prod = prox.prod || prox.m.prod;
+      const pr = prox.m.prot ? S.idx.prot.get(prox.m.prot) : null;
+      futuros.push({ d: prox.data, tipo: 'futuro', ic: 'agenda', t: `${NOME_ETAPA[prox.m.etapa] || prox.m.etapa}${prod && prod !== 'IATF' ? ` · ${prod}` : ''}`,
+        s: [pr ? pr.nome : null, 'previsto'].filter(Boolean).join(' · ') });
+    }
+    const parto = S.idx.partos.get(a.n);
+    if (parto && parto.prev >= hojeISO()) futuros.push({ d: parto.prev, tipo: 'futuro', ic: 'nasc', t: 'Parto previsto', s: parto.conc ? `concepção ${dtc(parto.conc)}` : '' });
+    futuros.sort((x, y) => x.d.localeCompare(y.d));
+  }
+  if (!itens.length && !futuros.length) return '';
+  const N = 12, primeiros = itens.slice(0, N), resto = itens.slice(N);
+  return `<div class="bloco"><h2 class="h2">${I.hist}Linha do tempo</h2>
+    ${futuros.length ? `<p class="tempo-sep">A seguir</p><ol class="tempo">${futuros.map((x) => itemTempo(x, true)).join('')}</ol><p class="tempo-sep">Já aconteceu</p>` : ''}
+    ${primeiros.length ? `<ol class="tempo">${primeiros.map((x) => itemTempo(x)).join('')}</ol>` : '<p class="nota">Nada lançado ainda.</p>'}
+    ${resto.length ? `<details class="tempo-mais"><summary>Ver mais ${resto.length}</summary><ol class="tempo">${resto.map((x) => itemTempo(x)).join('')}</ol></details>` : ''}
+  </div>`;
 }
 
 // listas prontas
 const LISTAS = {
+  todos: { t: 'Rebanho inteiro', cor: 'var(--acento)', f: () => true },
   prenhas: { t: 'Prenhas', cor: 'var(--c1)', f: (a) => a.sr === 'prenha', x: (a) => { const d = ultimoDG(a); return d ? `${resumo(a)} · DG ${dtc(d.d)}` : resumo(a); } },
   vazias: { t: 'Vazias', cor: 'var(--c5)', f: (a) => a.sr === 'vazia' },
   paridas: { t: 'Paridas', cor: 'var(--c6)', f: (a) => a.sr === 'parida' },
@@ -568,14 +628,52 @@ function janelaAvisos() {
     : '<p class="vazio">Nenhum aviso agora.</p>'}`);
 }
 
+// filtros em chips (categoria, situação, lote, pasto) dentro de cada lista
+const PLURAL_CAT = { matriz: 'Vacas', novilha: 'Novilhas', bezerra: 'Bezerras', bezerro: 'Bezerros', touro: 'Touros', boi: 'Bois', garrote: 'Garrotes', descarte: 'Descarte' };
+const PLURAL_SR = { prenha: 'Prenhas', vazia: 'Vazias', parida: 'Paridas', solteira: 'Solteiras' };
+const FILTRO_VAZIO = () => ({ cat: '', sr: '', lote: '', pasto: '' });
+S.filtro = FILTRO_VAZIO(); S.filtroDe = '';
+function pastosDoAnimal(a) {
+  const ids = [];
+  for (const l of a.lotes || []) {
+    const oc = S.idx.pastoDoLote.get(l);
+    if (oc) ids.push(oc.pasto, ...(oc.tambem || []));
+    else { const lo = S.idx.lotes.get(l); if (lo && lo.pasto) ids.push(lo.pasto); }
+  }
+  return ids;
+}
+const nomePasto = (id) => { const p = S.idx.pastos.get(id); return p ? (p.apelido ? `${p.nome} · ${p.apelido}` : p.nome) : `pasto ${id}`; };
+const FILTROS = {
+  cat: { t: 'Categoria', de: (a) => [a.c], nome: (v) => PLURAL_CAT[v] || v },
+  sr: { t: 'Situação', de: (a) => (a.sr ? [a.sr] : []), nome: (v) => PLURAL_SR[v] || v },
+  lote: { t: 'Lote', de: (a) => ((a.lotes || []).length ? a.lotes.map(String) : ['sem']), nome: (v) => (v === 'sem' ? 'Sem lote' : (S.idx.lotes.get(Number(v)) || {}).nome || `lote ${v}`) },
+  pasto: { t: 'Pasto', de: (a) => { const ps = pastosDoAnimal(a); return ps.length ? ps.map(String) : ['sem']; }, nome: (v) => (v === 'sem' ? 'Sem pasto' : nomePasto(Number(v))) },
+};
+const passaFiltros = (a, menos) => Object.entries(S.filtro).every(([k, v]) => !v || k === menos || FILTROS[k].de(a).includes(v));
+function chipsFiltros(base) {
+  return Object.entries(FILTROS).map(([k, F]) => {
+    // opções que existem nesta lista (contando com os outros filtros já escolhidos)
+    const cont = new Map();
+    for (const a of base) if (passaFiltros(a, k)) for (const v of new Set(F.de(a))) cont.set(v, (cont.get(v) || 0) + 1);
+    if (cont.size < 2 && !S.filtro[k]) return '';
+    const ops = [...cont.entries()].sort((x, y) => y[1] - x[1] || F.nome(x[0]).localeCompare(F.nome(y[0]), 'pt-BR', { numeric: true }));
+    return `<div class="chips filtro" role="group" aria-label="${esc(F.t)}"><span class="chips-t">${esc(F.t)}</span>
+      <button class="chip" data-acao="filtro" data-tipo="${k}" data-valor="" aria-pressed="${!S.filtro[k]}">${k === 'cat' || k === 'sr' ? 'Todas' : 'Todos'}</button>
+      ${ops.map(([v, n]) => `<button class="chip" data-acao="filtro" data-tipo="${k}" data-valor="${esc(v)}" aria-pressed="${S.filtro[k] === v}">${esc(F.nome(v))} <small>${n}</small></button>`).join('')}</div>`;
+  }).join('');
+}
 function telaLista(id) {
   const L = LISTAS[id];
   if (!L) return telaListas();
-  const r = animaisDaLista(id);
+  if (S.filtroDe !== id) { S.filtro = FILTRO_VAZIO(); S.filtroDe = id; }
+  const base = animaisDaLista(id);
+  const r = base.filter((a) => passaFiltros(a));
+  const filtrando = Object.values(S.filtro).some(Boolean);
   return `<section class="pagina"><button class="voltar" data-ir="#listas">${I.voltar}Listas</button>
-    <h1 class="h1">${esc(L.t)}</h1>${chipsFazenda()}
-    ${r.length ? `<p class="nota">${r.length === 1 ? '1 animal' : `${r.length} animais`}</p><div class="lista">${r.map((a) => itemAnimal(a, L.x ? L.x(a) : resumo(a))).join('')}</div>`
-      : '<p class="vazio">Nenhum animal nesta lista.</p>'}</section>`;
+    <h1 class="h1">${esc(L.t)}</h1>${chipsFazenda()}${chipsFiltros(base)}
+    ${r.length ? `<p class="nota">${filtrando ? `${r.length} de ${base.length} animais` : r.length === 1 ? '1 animal' : `${r.length} animais`}${filtrando ? ' · <button class="link" data-acao="limpar-filtros">limpar filtros</button>' : ''}</p>
+      <div class="lista">${r.map((a) => itemAnimal(a, L.x ? L.x(a) : resumo(a))).join('')}</div>`
+      : `<p class="vazio">Nenhum animal nesta lista${filtrando ? ' com esses filtros' : ''}.</p>${filtrando ? '<button class="btn sec" data-acao="limpar-filtros">Limpar filtros</button>' : ''}`}</section>`;
 }
 
 function telaAgenda() {
@@ -734,6 +832,12 @@ document.addEventListener('click', (ev) => {
       for (const c of document.querySelectorAll('.chip')) c.setAttribute('aria-pressed', String(c.dataset.valor === S.fazenda));
       $('#resultados').innerHTML = resultados(); pintarCartoes();
     } else desenhar();
+  } else if (acao === 'filtro') {
+    const k = b.dataset.tipo, v = b.dataset.valor;
+    S.filtro[k] = S.filtro[k] === v ? '' : v;
+    const y = window.scrollY; desenhar(); window.scrollTo(0, y);
+  } else if (acao === 'limpar-filtros') {
+    S.filtro = FILTRO_VAZIO(); desenhar();
   } else if (acao === 'teclado') {
     S.teclado = S.teclado === 'numeric' ? 'text' : 'numeric';
     const q = $('#q'); q.setAttribute('inputmode', S.teclado); b.textContent = S.teclado === 'numeric' ? 'ABC' : '123';
