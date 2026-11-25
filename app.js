@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.2 · 25/11/2026';
+const VERSAO_APP = '2.3 · 25/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -361,6 +361,7 @@ function telaAnimal(id) {
     ${a.st === 'ativo' && dono() ? `<div class="chips atalhos">
       <button class="chip" data-ir="#lancar/pesagem/${a.id}">${I.balanca}Pesar</button>
       ${a.s === 'F' && !['bezerra'].includes(a.c) ? `<button class="chip" data-ir="#lancar/nascimento/${a.id}">${I.nasc}Pariu</button>` : ''}
+      <button class="chip" data-ir="#lancar/remedio/${a.id}">${I.saude}Remédio</button>
       <button class="chip" data-ir="#lancar/morte/${a.id}">${I.morte}Morte</button></div>` : ''}
     ${blocoReproducao(a)}
     ${blocoTempo(a)}

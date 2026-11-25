@@ -1,4 +1,5 @@
-// Curral Digital — lançar pelo app, mesmo sem internet (etapa 2A do plano do app).
+// Curral Digital — lançar pelo app, mesmo sem internet (etapas 2A e 2B do plano do app).
+// 2A: pesagem, mudança de pasto, nascimento, morte, chuva. 2B: vacina/remédio, salga de cocho e modo Curral (em curral.js).
 // O que é confirmado vai para uma fila guardada no celular e segue para o sistema quando houver sinal.
 // Cada lançamento leva um número próprio (uid): se o envio cair no meio e for repetido, o sistema grava uma vez só.
 // O rascunho de cada tela também fica guardado: se o celular fechar o app no meio da pesagem, nada se perde.
@@ -11,8 +12,20 @@ const TIPOS_L = {
   nascimento: { t: 'Nascimento', ic: 'nasc' },
   morte: { t: 'Morte', ic: 'morte' },
   chuva: { t: 'Chuva', ic: 'chuva' },
+  remedio: { t: 'Vacina ou remédio', ic: 'saude' },
+  salga: { t: 'Salga de cocho', ic: 'peso' },
+  curral: { t: 'Modo Curral', ic: 'curral' },
 };
-const BREVE_L = [['saude', 'Vacina ou remédio'], ['peso', 'Salga de cocho'], ['curral', 'Sessão no curral'], ['repro', 'Protocolo IATF']];
+const BREVE_L = [['repro', 'Diagnóstico de gestação']];
+const CAT_REMEDIO = ['vacina', 'vermifugo', 'carrapaticida', 'antibiotico', 'anti_inflamatorio', 'vitamina', 'outro'];
+const CAT_SAL = ['sal_mineral', 'suplemento', 'racao'];
+const MOTIVOS = ['Vacinação', 'Vermifugação', 'Carrapato e mosca', 'Tratamento (doente)', 'Bicheira'];
+const UN = { ml: 'mL', dose: 'dose', unidade: 'un.', kg: 'kg', saco: 'saco', litro: 'L' };
+const produtos = (cats) => (S.dados.produtos || []).filter((p) => cats.includes(p.cat));
+const prodPorId = (id) => (S.dados.produtos || []).find((p) => p.id === id) || null;
+const doseNum = (p) => { const m = String((p && p.dose) || '').match(/\d+(?:[.,]\d+)?/); return m ? m[0] : ''; };
+const animaisDoLote = (id) => S.dados.animais.filter((a) => a.st === 'ativo' && (a.lotes || []).includes(id));
+function somarDias(iso, n) { const d = new Date(`${iso}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 const CAUSAS = ['Picada de cobra', 'Tristeza parasitária', 'Bicheira', 'Problema no parto', 'Raio', 'Não sei'];
 
 // ------------------------------------------------------------------ fila no celular
@@ -47,7 +60,8 @@ async function enviarFila(manual = false) {
     for (const x of l) {
       const r = porUid.get(x.uid);
       if (!r || r.erro) { resto.push(x); continue; }   // não chegou ou erro do sistema: tenta de novo depois
-      env.unshift({ uid: x.uid, tipo: x.tipo, resumo: x.resumo, ok: !!r.ok, texto: r.texto || '', feito: x.feito, enviado: new Date().toISOString() });
+      env.unshift({ uid: x.uid, tipo: x.tipo, resumo: x.resumo, ok: !!r.ok, texto: r.texto || '', feito: x.feito, enviado: new Date().toISOString(),
+        ...(!r.ok && x.rasc ? { rasc: x.rasc } : {}) });   // recusado: guarda o que foi digitado para corrigir e mandar de novo
       if (r.ok) gravou++; else recusou++;
     }
     guardarFila(resto); guardarEnviados(env);
@@ -66,7 +80,9 @@ setInterval(() => { if (nFila() && navigator.onLine) enviarFila(); }, 60000);
 function confirmarLancamento(tipo, dados, resumo) {
   const uid = novoUid(), feito = new Date().toISOString();
   const l = fila();
-  l.push({ uid, tipo, resumo, feito, dados: { uid, tipo, feito, ...dados } });
+  const r = rasc(tipo);
+  delete r.revisar;
+  l.push({ uid, tipo, resumo, feito, dados: { uid, tipo, feito, ...dados }, rasc: r });
   guardarFila(l);
   limparRascunho(tipo);
   location.hash = '#lancar';
@@ -136,7 +152,8 @@ function telaManejo() {
       <div class="lista">${env.slice(0, 15).map((x) => `<div class="item item-fixo${x.ok ? '' : ' recusado'}"><span>
         <span class="item-t">${esc(x.desfeito ? `↩️ ${x.resumo}` : x.texto || x.resumo)}</span>
         <span class="item-m">${esc(x.desfeito ? `desfeito ${quando(x.desfeito)}` : x.ok ? `gravado ${quando(x.enviado)}` : `${x.resumo} · recusado`)}</span></span>
-        ${x.ok && !x.desfeito && pode ? `<button class="link" data-acao="l-desfazer" data-uid="${esc(x.uid)}">desfazer</button>` : ''}</div>`).join('')}</div></div>` : ''}
+        ${x.ok && !x.desfeito && pode ? `<button class="link" data-acao="l-desfazer" data-uid="${esc(x.uid)}">desfazer</button>` : ''}
+        ${!x.ok && x.rasc && pode ? `<button class="link" data-acao="l-reabrir" data-uid="${esc(x.uid)}">corrigir</button>` : ''}</div>`).join('')}</div></div>` : ''}
   </section>`;
 }
 
@@ -184,9 +201,13 @@ function aplicarPre(tipo, r, pre) {
   if (pre.startsWith('lote-')) r.lote = Number(pre.slice(5));
   else {
     const a = S.idx.porId.get(Number(pre));
-    if (a) { if (tipo === 'nascimento') r.mae = a.id; else if (tipo === 'morte') r.a = a.id; else if (tipo === 'pesagem') r.num = a.n; }
+    if (a) {
+      if (tipo === 'nascimento') r.mae = a.id; else if (tipo === 'morte') r.a = a.id; else if (tipo === 'pesagem') r.num = a.n;
+      else if (tipo === 'remedio') { r.alvo = 'animais'; r.itens = [...new Set([...(r.itens || []), a.id])]; }
+    }
   }
-  if (r.lote && tipo === 'pasto') { const l = S.idx.lotes.get(r.lote); if (l) r.f = l.f; }
+  if (r.lote && (tipo === 'pasto' || tipo === 'salga')) { const l = S.idx.lotes.get(r.lote); if (l) { r.f = l.f; r.pasto = null; } }
+  if (r.lote && tipo === 'remedio') r.alvo = 'lote';
   guardarRasc(tipo, r);
 }
 
@@ -272,6 +293,73 @@ const FORMS = {
         <button class="chip" data-acao="l-faz" data-valor="ambas" aria-pressed="${r.f === 'ambas'}">Nas duas</button></div></div>
       <button class="btn" data-acao="l-revisar" ${lerNum(r.mmTxt) !== null && r.mmTxt !== '' ? '' : 'disabled'}>Revisar e confirmar</button>`;
   },
+  remedio(r) {
+    const ps = produtos(CAT_REMEDIO);
+    const p = r.prod ? prodPorId(r.prod) : null;
+    if (!r.alvo) r.alvo = 'animais';
+    const itens = r.itens || [];
+    const lotes = S.dados.lotes.filter((l) => animaisDoLote(l.id).length);
+    const achado = r.num ? acharAnimal(r.num) : null;
+    return `${cabForm('remedio')}${campoData(r)}
+      <div class="campo"><span>Produto</span><div class="chips quebra">
+        ${ps.map((x) => `<button class="chip" data-acao="l-prod" data-valor="${x.id}" aria-pressed="${r.prod === x.id}">${esc(x.nome)}</button>`).join('')}
+        <button class="chip" data-acao="l-prod" data-valor="" aria-pressed="${!r.prod}">Outro (escrever)</button></div>
+        ${p ? '' : `<input id="r-nome" value="${esc(r.nome || '')}" placeholder="nome do produto (ex.: Ivomec)" autocomplete="off">`}</div>
+      ${p ? `<label class="campo"><span>Dose por animal (${esc(UN[p.un] || p.un || '')})</span><input id="r-qtd" inputmode="decimal" value="${esc(r.qtdTxt || '')}" placeholder="${esc(doseNum(p) || 'dose')}"></label>`
+        : `<label class="campo"><span>Dose por animal</span><input id="r-dose" value="${esc(r.dose || '')}" placeholder="ex.: 5 ml" autocomplete="off"></label>`}
+      <div class="campo"><span>Para quê</span><div class="chips quebra">${MOTIVOS.map((m) => `<button class="chip" data-acao="l-motivo" data-valor="${esc(m)}" aria-pressed="${r.motivo === m}">${esc(m)}</button>`).join('')}</div></div>
+      <label class="campo"><span>Carência (dias sem vender ou abater; vazio = sem carência)</span><input id="r-car" inputmode="numeric" value="${esc(r.carTxt || '')}" placeholder="0"></label>
+      <div class="campo"><span>Em quem</span><div class="duas-op">
+        <button class="opcao grande" data-acao="l-alvo" data-valor="animais" aria-pressed="${r.alvo === 'animais'}"><b>Animais</b><small>pelo número</small></button>
+        <button class="opcao grande" data-acao="l-alvo" data-valor="lote" aria-pressed="${r.alvo === 'lote'}"><b>Lote inteiro</b><small>todos do lote</small></button></div></div>
+      ${r.alvo === 'lote'
+        ? `<div class="opcoes">${lotes.map((l) => `<button class="opcao" data-acao="l-lote" data-valor="${l.id}" aria-pressed="${r.lote === l.id}">
+            <b>${esc(l.nome)}</b><small>${esc(faz(l.f).codigo)} · ${animaisDoLote(l.id).length} animais cadastrados</small></button>`).join('') || '<p class="vazio">Nenhum lote com animais.</p>'}</div>`
+        : `<div class="pesar"><label class="campo"><span>Número</span><input id="r-num" inputmode="numeric" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" value="${esc(r.num || '')}" placeholder="brinco"></label>
+            <button class="btn sec" data-acao="l-rem-add">Pôr na lista</button></div>
+          <div id="l-achado">${animalAchado(achado, !r.num)}</div>
+          ${itens.length ? `<p class="nota"><b>${itens.length} ${itens.length === 1 ? 'animal' : 'animais'}</b></p><div class="lista">${itens.slice().reverse().map((id) => { const a = S.idx.porId.get(id);
+            return `<div class="item item-fixo"><span><span class="item-t">${esc(a ? a.n : '?')}</span><span class="item-m">${esc(a ? resumo(a) : '')}</span></span>
+              <button class="link perigo-t" data-acao="l-rem-tirar" data-valor="${id}">tirar</button></div>`; }).join('')}</div>` : '<p class="vazio">Nenhum animal na lista ainda.</p>'}`}
+      <label class="campo"><span>Observação</span><input id="l-obs" value="${esc(r.obs || '')}" placeholder="opcional"></label>
+      <button class="btn" data-acao="l-revisar" ${PRONTO.remedio(r) ? '' : 'disabled'}>Revisar e confirmar</button>`;
+  },
+  salga(r) {
+    const fz = S.dados.fazendas;
+    if (!r.f) r.f = S.fazenda !== 'todas' ? (fz.find((x) => x.codigo === S.fazenda) || fz[0]).id : null;
+    if (!r.un) r.un = 'sacos';
+    const ps = produtos(CAT_SAL);
+    const p = r.prod ? prodPorId(r.prod) : null;
+    const lotes = r.f ? S.dados.lotes.filter((l) => l.f === r.f) : [];
+    const pastos = r.f ? [...S.idx.pastos.values()].filter((x) => x.f === r.f).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR', { numeric: true })) : [];
+    const ondeLote = (l) => { const o = S.idx.pastoDoLote.get(l.id); const n = animaisDoLote(l.id).length;
+      return [o ? `no ${nomePasto(o.pasto)}` : null, n ? `${n} cabeças` : null].filter(Boolean).join(' · ') || 'sem animais cadastrados'; };
+    return `${cabForm('salga')}${campoData(r)}
+      <div class="campo"><span>Fazenda</span><div class="chips">${fz.map((x) => `<button class="chip" data-acao="l-faz" data-valor="${x.id}" aria-pressed="${r.f === x.id}">${esc(x.codigo)}</button>`).join('')}</div></div>
+      ${r.f ? `<div class="campo"><span>Cocho de qual lote?</span><div class="opcoes">${lotes.map((l) => `<button class="opcao" data-acao="l-lote" data-valor="${l.id}" aria-pressed="${r.lote === l.id}">
+          <b>${esc(l.nome)}</b><small>${esc(ondeLote(l))}</small></button>`).join('') || '<p class="vazio">Nenhum lote nesta fazenda.</p>'}</div></div>
+        ${pastos.length ? `<div class="campo"><span>ou só o pasto</span><div class="chips quebra">${pastos.map((x) => `<button class="chip" data-acao="l-pasto" data-valor="${x.id}" aria-pressed="${r.pasto === x.id}">${esc(nomePasto(x.id))}</button>`).join('')}</div></div>` : ''}
+        <div class="campo"><span>O que foi posto no cocho</span><div class="chips quebra">
+          ${ps.map((x) => `<button class="chip" data-acao="l-prod" data-valor="${x.id}" aria-pressed="${r.prod === x.id}">${esc(x.nome)}</button>`).join('')}
+          <button class="chip" data-acao="l-prod" data-valor="" aria-pressed="${!r.prod}">Outro (escrever)</button></div>
+          ${p ? '' : `<input id="r-nome" value="${esc(r.nome || '')}" placeholder="ex.: sal mineral" autocomplete="off">`}</div>
+        <div class="campo"><span>Quantidade</span><div class="pesar">
+          <input id="s-qtd" class="num-grande" inputmode="decimal" value="${esc(r.qtdTxt || '')}" placeholder="${r.un === 'kg' ? 'kg' : 'sacos'}">
+          <div class="chips"><button class="chip" data-acao="l-un" data-valor="sacos" aria-pressed="${r.un === 'sacos'}">Sacos</button>
+            <button class="chip" data-acao="l-un" data-valor="kg" aria-pressed="${r.un === 'kg'}">kg</button></div></div>
+          ${p && p.kgun && r.un === 'sacos' ? `<small class="nota">saco de ${esc(numBR(p.kgun))} kg</small>` : ''}</div>
+        <label class="campo"><span>Observação</span><input id="l-obs" value="${esc(r.obs || '')}" placeholder="opcional"></label>` : '<p class="nota">Escolha a fazenda.</p>'}
+      <button class="btn" data-acao="l-revisar" ${PRONTO.salga(r) ? '' : 'disabled'}>Revisar e confirmar</button>`;
+  },
+};
+
+// quando o botão "Revisar e confirmar" pode ser tocado (conferido de novo a cada letra digitada)
+const PRONTO = {
+  chuva: (r) => lerNum(r.mmTxt) !== null && r.mmTxt !== '',
+  nascimento: (r) => !!(r.mae && r.sexo),
+  morte: (r) => !!r.a,
+  remedio: (r) => !!((r.prod || (r.nome || '').trim()) && (r.alvo === 'lote' ? r.lote : (r.itens || []).length)),
+  salga: (r) => !!(r.f && (r.lote || r.pasto) && (r.prod || (r.nome || '').trim()) && (lerNum(r.qtdTxt) || 0) > 0),
 };
 
 function avisosParto(mae, data) {
@@ -327,8 +415,52 @@ function montar(tipo, r) {
     return { dados: { data: r.data, mm, f: r.f === 'ambas' ? 'ambas' : r.f },
       resumo: `Chuva ${d}: ${numBR(mm)} mm (${onde})`, linhas: [`${numBR(mm)} mm em ${dt(r.data)}`, `Onde: ${onde}`] };
   }
-  return null;
+  return MONTAR[tipo] ? MONTAR[tipo](r) : null;
 }
+const MONTAR = {
+  remedio(r) {
+    const d = dtc(r.data);
+    const p = r.prod ? prodPorId(r.prod) : null;
+    const nome = p ? p.nome : (r.nome || '').trim();
+    const qtd = p ? lerNum(r.qtdTxt) : null;
+    const un = p ? (UN[p.un] || p.un || '') : '';
+    const dose = p ? (qtd ? `${numBR(qtd, 2)} ${un}` : '') : (r.dose || '').trim();
+    const car = Math.round(lerNum(r.carTxt) || 0);
+    const lote = r.alvo === 'lote' && r.lote ? S.idx.lotes.get(r.lote) : null;
+    const ids = lote ? animaisDoLote(lote.id).map((a) => a.id) : (r.itens || []);
+    const n = ids.length;
+    const nums = ids.map((id) => (S.idx.porId.get(id) || {}).n).filter(Boolean);
+    const quem = lote ? `lote ${lote.nome} (${n})` : n <= 4 ? nums.join(', ') : `${n} animais`;
+    return { dados: { data: r.data, prod: p ? p.id : null, nome: p ? null : nome, qtd: qtd || null, dose: p ? null : dose || null,
+        carencia: car || null, motivo: r.motivo || null, alvo: lote ? 'lote' : 'animais', lote: lote ? lote.id : null, itens: lote ? null : ids, obs: r.obs || null },
+      resumo: `${nome}${dose ? ` ${dose}` : ''} ${d}: ${quem}`,
+      linhas: [`Produto: ${nome}${dose ? ` · ${dose} por animal` : ''}`, r.motivo ? `Para: ${r.motivo}` : null,
+        lote ? `Lote inteiro: ${lote.nome} (${faz(lote.f).codigo}) · ${n} animais cadastrados` : `${n} ${n === 1 ? 'animal' : 'animais'}: ${nums.join(', ')}`,
+        car > 0 ? `Carência: ${car} dias · liberado para venda em ${dt(somarDias(r.data, car))}` : 'Sem carência',
+        p && qtd ? (p.compra ? `Baixa no estoque: ${numBR(qtd * n, 2)} ${un} no total` : 'Sem baixa no estoque (a compra desse produto ainda não foi lançada)') : null,
+        `Data: ${dt(r.data)}`, r.obs ? `Obs.: ${r.obs}` : null].filter(Boolean),
+      total: `${n} ${n === 1 ? 'animal' : 'animais'}${qtd ? ` · ${numBR(qtd * n, 2)} ${un} no total` : ''}` };
+  },
+  salga(r) {
+    const fz = faz(r.f);
+    const l = r.lote ? S.idx.lotes.get(r.lote) : null;
+    const p = r.prod ? prodPorId(r.prod) : null;
+    const nome = p ? p.nome : (r.nome || '').trim();
+    const q = lerNum(r.qtdTxt);
+    const sacos = r.un === 'kg' ? null : q;
+    const kgTot = r.un === 'kg' ? q : p && p.kgun ? q * p.kgun : null;
+    const qtdTxt = r.un === 'kg' ? `${numBR(q)} kg` : `${numBR(q)} ${q === 1 ? 'saco' : 'sacos'}`;
+    const o = l ? S.idx.pastoDoLote.get(l.id) : null;
+    const cab = l ? animaisDoLote(l.id).length : 0;
+    const onde = l ? `lote ${l.nome}` : nomePasto(r.pasto);
+    return { dados: { data: r.data, f: r.f, lote: l ? l.id : null, pasto: l ? null : r.pasto, prod: p ? p.id : null, nome: p ? null : nome,
+        sacos, kg: r.un === 'kg' ? q : null, obs: r.obs || null },
+      resumo: `Salga ${dtc(r.data)}: ${qtdTxt} de ${nome}, ${onde} (${fz.codigo})`,
+      linhas: [`${qtdTxt} de ${nome}${kgTot && r.un !== 'kg' ? ` (${numBR(kgTot)} kg)` : ''}`,
+        `Onde: ${onde}${o ? `, no ${nomePasto(o.pasto)}` : ''} (${fz.codigo})`, cab ? `${cab} cabeças no lote` : null,
+        `Data: ${dt(r.data)}`, r.obs ? `Obs.: ${r.obs}` : null].filter(Boolean) };
+  },
+};
 function revisao(tipo, r) {
   const m = montar(tipo, r);
   return `${cabForm(tipo)}
@@ -382,10 +514,38 @@ document.addEventListener('click', (ev) => {
     return;
   }
   if (acao === 'l-desfazer-sim') { desfazerEnviado(b.dataset.uid); return; }
+  if (acao === 'l-reabrir') {   // recusado: volta para a tela com o que tinha sido digitado
+    const env = enviados(), x = env.find((y) => y.uid === b.dataset.uid);
+    if (!x || !x.rasc) return;
+    guardarRasc(x.tipo, x.rasc);
+    delete x.rasc; guardarEnviados(env);
+    location.hash = `#lancar/${x.tipo}`;
+    return;
+  }
   if (acao === 'l-dia') return mexer((r) => { r.data = v; });
-  if (acao === 'l-lote') return mexer((r, t) => { r.lote = v ? Number(v) : null; if (t === 'pasto') r.pasto = null; });
-  if (acao === 'l-faz') return mexer((r, t) => { r.f = v === 'ambas' ? 'ambas' : Number(v); if (t === 'pasto') { r.lote = null; r.pasto = null; } });
-  if (acao === 'l-pasto') return mexer((r) => { r.pasto = Number(v); });
+  if (acao === 'l-lote') return mexer((r, t) => { r.lote = v ? Number(v) : null; if (t === 'pasto' || t === 'salga') r.pasto = null; });
+  if (acao === 'l-faz') return mexer((r, t) => { r.f = v === 'ambas' ? 'ambas' : Number(v); if (t === 'pasto' || t === 'salga') { r.lote = null; r.pasto = null; } });
+  if (acao === 'l-pasto') return mexer((r, t) => { r.pasto = Number(v); if (t === 'salga') r.lote = null; });
+  if (acao === 'l-prod') return mexer((r, t) => {
+    r.prod = v ? Number(v) : null;
+    const p = r.prod ? prodPorId(r.prod) : null;
+    if (t === 'remedio') { r.qtdTxt = p ? doseNum(p) : ''; r.carTxt = p && p.car ? String(p.car) : ''; }
+  });
+  if (acao === 'l-motivo') return mexer((r) => { r.motivo = r.motivo === v ? '' : v; });
+  if (acao === 'l-alvo') return mexer((r) => { r.alvo = v; });
+  if (acao === 'l-un') return mexer((r) => { r.un = v; });
+  if (acao === 'l-rem-tirar') return mexer((r) => { r.itens = (r.itens || []).filter((x) => x !== Number(v)); });
+  if (acao === 'l-rem-add') {
+    let ok = false;
+    mexer((r) => {
+      const a = acharAnimal(r.num || '');
+      if (!a) { avisar('Não achei esse número no rebanho.'); return; }
+      r.itens = [...(r.itens || []).filter((x) => x !== a.id), a.id];
+      r.num = ''; ok = true;
+    });
+    if (ok) setTimeout(() => $('#r-num')?.focus(), 30);
+    return;
+  }
   if (acao === 'l-sexo') return mexer((r) => { r.sexo = v; });
   if (acao === 'l-natimorto') return mexer((r) => { r.natimorto = !r.natimorto; });
   if (acao === 'l-causa') return mexer((r) => { r.causa = r.causa === v ? '' : v; });
@@ -419,6 +579,11 @@ document.addEventListener('input', (ev) => {
     if (el.id === 'l-obs') r.obs = el.value;
     if (el.id === 'l-causa') r.causa = el.value;
     if (el.id === 'l-mm') r.mmTxt = el.value;
+    if (el.id === 'r-nome') r.nome = el.value;
+    if (el.id === 'r-qtd' || el.id === 's-qtd') r.qtdTxt = el.value;
+    if (el.id === 'r-dose') r.dose = el.value;
+    if (el.id === 'r-car') r.carTxt = el.value;
+    if (el.id === 'r-num') r.num = el.value;
   }, false);
   // atualiza só o pedaço que depende do que foi digitado
   const r = rasc(tipo);
@@ -432,16 +597,15 @@ document.addEventListener('input', (ev) => {
     }
     if (tipo === 'morte' && a) { r.a = a.id; guardarRasc(tipo, r); }
   }
+  if (el.id === 'r-num') $('#l-achado').innerHTML = animalAchado(acharAnimal(r.num), !r.num);
   const btn = $('[data-acao="l-revisar"]');
-  if (btn && tipo !== 'pesagem' && tipo !== 'pasto') {
-    const pronto = tipo === 'chuva' ? lerNum(r.mmTxt) !== null && r.mmTxt !== ''
-      : tipo === 'nascimento' ? !!(r.mae && r.sexo) : tipo === 'morte' ? !!r.a : true;
-    btn.disabled = !pronto;
-  }
+  if (btn && PRONTO[tipo]) btn.disabled = !PRONTO[tipo](r);
   if (el.id === 'l-data') { const y = window.scrollY; desenhar(); window.scrollTo(0, y); }
 });
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Enter' || !ev.target.closest || !ev.target.closest('.form-lancar')) return;
+  if ((ev.target.id || '').startsWith('c-')) return;   // modo Curral cuida do Enter dele (curral.js)
+  if (ev.target.id === 'r-num') { ev.preventDefault(); $('[data-acao="l-rem-add"]').click(); return; }
   if (ev.target.id === 'l-num' && $('#l-kg')) { ev.preventDefault(); $('#l-kg').focus(); return; }
   if (ev.target.id === 'l-kg') { ev.preventDefault(); $('[data-acao="l-add"]').click(); return; }
   ev.target.blur();
@@ -455,6 +619,12 @@ function pendentesDoAnimal(a) {
     if (x.tipo === 'pesagem') for (const it of d.itens || []) { if (it.a === a.id) l.push({ d: d.data, t: `Pesagem · ${kg(it.kg)}` }); }
     if (x.tipo === 'morte' && d.a === a.id) l.push({ d: d.data, t: `Morte${d.causa ? ` · ${d.causa}` : ''}` });
     if (x.tipo === 'nascimento' && d.mae === a.id) l.push({ d: d.data, t: `Pariu ${d.sexo === 'M' ? 'um bezerro' : 'uma bezerra'}` });
+    if (x.tipo === 'remedio' && ((d.itens || []).includes(a.id) || (d.alvo === 'lote' && (a.lotes || []).includes(d.lote)))) {
+      l.push({ d: d.data, t: `Vacina/remédio · ${d.nome || (prodPorId(d.prod) || {}).nome || ''}` });
+    }
+    if (x.tipo === 'curral') for (const it of d.itens || []) {
+      if (it.a === a.id) l.push({ d: d.data, t: `Curral · ${(it.m || []).length} etapa(s) feita(s)${it.kg ? ` · ${kg(it.kg)}` : ''}` });
+    }
   }
   return l.map((x) => ({ ...x, tipo: 'fila', ic: 'atualizar', s: 'esperando envio (está guardado no celular)' }));
 }

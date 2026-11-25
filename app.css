@@ -449,3 +449,20 @@ button { font: inherit; color: inherit; }
 .item.recusado .item-t { color: var(--atencao); }
 .tempo li.t-fila { --cor: var(--atencao); }
 .tempo li.t-fila .tempo-ic { background: transparent; border: 2px dashed var(--cor); }
+
+/* 2B: vacina/remédio, salga e modo Curral (app 2.3) */
+.opcao:disabled { opacity: .5; cursor: default; }
+.acoes-item { display: flex; gap: 14px; flex-shrink: 0; }
+.curral-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.curral-t { margin: 0; font-size: 18px; font-weight: 800; }
+.curral-s { margin: 2px 0 0; font-size: 13px; color: var(--apagado); }
+.curral-conta { display: flex; justify-content: space-between; align-items: baseline; background: var(--cartao); border-radius: var(--raio);
+  padding: 12px 16px; font-size: 15px; color: var(--apagado); }
+.curral-conta b { font-size: 28px; color: var(--texto); margin-right: 4px; }
+.curral-animal { display: flex; flex-direction: column; gap: 10px; border: 1.5px solid var(--acento); }
+.curral-animal .nota { margin: 0; }
+.chip.feita { opacity: .6; cursor: default; }
+.chip.cetapa[aria-pressed="true"]::before { content: "✓ "; }
+.chip.cetapa[aria-pressed="false"] { border-color: var(--atencao); color: var(--atencao); }
+.form-lancar .chip svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 5px; }
+.curral-animal .chip { padding: 12px 16px; font-size: 16px; }
