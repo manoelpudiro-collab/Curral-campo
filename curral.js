@@ -7,7 +7,28 @@
 
 const ORDEM_ETAPA = ['inducao', 'implante', 'retirada_implante', 'cipionato', 'prostaglandina', 'eCG', 'aplicacao', 'inseminacao', 'repasse', 'outro'];
 const capital = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
-const nomeEtapaC = (m) => (m.etapa === 'aplicacao' && m.prod ? capital(m.prod) : NOME_ETAPA[m.etapa] || m.etapa);
+// nome da etapa sempre com o produto (ex.: "eCG · LUTEGLAN"), como na agenda: no D0 o Luteglan aparecia só como "eCG"
+const nomeEtapaC = (m) => (m.etapa === 'aplicacao' && m.prod ? capital(m.prod)
+  : `${NOME_ETAPA[m.etapa] || m.etapa}${m.prod && m.prod !== 'IATF' ? ` · ${m.prod}` : ''}`);
+
+// cópia do celular com mais de 6 horas: etapa criada depois não aparece (foi o que aconteceu no D0 de 25/11)
+function avisoCopiaVelha() {
+  if (!S.quando || Date.now() - Date.parse(S.quando) < 6 * 3600000) return '';
+  return `<p class="achado aviso-t">⚠️ A cópia do celular é de ${esc(horaDe(S.quando))}. Etapa marcada depois disso não aparece aqui. Se puder, atualize com internet antes de ir para o curral.</p>`;
+}
+// sessão aberta com cópia antiga: quando a cópia nova chega, as etapas novas do mesmo manejo entram sozinhas
+// (se ninguém passou ainda); se já tem animal na lista, ficam avisadas e continuam previstas
+function juntarEtapasNovas(r) {
+  const g = gruposCurral().find((x) => x.k === r.g);
+  const novas = g ? g.mjs.map((m) => m.id).filter((id) => !r.mjs.includes(id)) : [];
+  if (!novas.length) return r.avisoNovas || [];
+  const ordem = g.mjs.map((m) => m.id);
+  r.mjs = ordem.filter((id) => r.mjs.includes(id) || novas.includes(id)).concat(r.mjs.filter((id) => !ordem.includes(id)));
+  if ((r.itens || []).length) r.avisoNovas = [...(r.avisoNovas || []), ...novas];
+  else r.on = r.mjs.filter((id) => r.on.includes(id) || novas.includes(id));
+  guardarRasc('curral', r);
+  return r.avisoNovas || [];
+}
 
 // etapas previstas juntas: mesmo protocolo (ou lote), mesma fazenda, mesmo dia previsto
 function gruposCurral() {
@@ -70,11 +91,14 @@ FORMS.curral = function (r) {
         <small>${g.pend ? `${g.pend} ${g.pend === 1 ? 'animal' : 'animais'} por fazer` : 'nenhum animal no protocolo ainda: o D0 é pela conversa com o Claude'}</small></button>`;
     return `${cabForm('curral')}
       <p class="nota">Escolha o manejo. Depois é só digitar o número de cada animal que passar no tronco. Funciona sem internet.</p>
+      ${avisoCopiaVelha()}
       ${perto.length ? `<div class="opcoes">${perto.map(item).join('')}</div>` : '<p class="vazio">Nenhum manejo previsto para estes dias.</p>'}
       ${longe.length ? `<details class="tempo-mais"><summary>Outros manejos previstos (${longe.length})</summary><div class="opcoes">${longe.map(item).join('')}</div></details>` : ''}`;
   }
+  const novas = juntarEtapasNovas(r);
   const mjs = r.mjs.map((id) => S.idx.manejos.get(id)).filter(Boolean);
   const itens = r.itens || [];
+  const fora = mjs.filter((m) => !r.on.includes(m.id) && m.st === 'previsto');
   const faltam = faltamCurral(r);
   const g = { prot: r.prot, lote: r.lote, prev: r.prev, f: r.f };
   const longe = r.prev && Math.abs(diasEntre(r.prev, r.data)) > 2;
@@ -83,11 +107,14 @@ FORMS.curral = function (r) {
     <div class="bloco curral-cab"><div><p class="curral-t">${esc(tituloGrupo(g))}</p>
       <p class="curral-s">${esc(faz(r.f).codigo)} · previsto para ${esc(dt(r.prev))}</p></div>
       <button class="link" data-acao="c-trocar">trocar</button></div>
+    ${avisoCopiaVelha()}
+    ${novas.length ? `<p class="achado aviso-t">⚠️ Chegou etapa nova para este manejo: ${esc(novas.map((id) => nomeEtapaC(S.idx.manejos.get(id))).join(', '))}. Como já tem animal na lista, ela não entra nesta sessão: continua prevista (lance numa sessão depois desta).</p>` : ''}
     ${campoData(r)}
     ${longe ? `<p class="achado aviso-t">⚠️ Previsto para ${esc(dtc(r.prev))}; você está lançando em ${esc(dtc(r.data))}. Confere a data.</p>` : ''}
     <div class="campo"><span>Etapas desta sessão${itens.length ? ' (travadas: já tem animal na lista)' : ''}</span><div class="chips quebra">
       ${mjs.map((m) => `<button class="chip" data-acao="c-sessao" data-valor="${m.id}" aria-pressed="${r.on.includes(m.id)}" ${itens.length ? 'disabled' : ''}>${esc(nomes.get(m.id))}</button>`).join('')}
-      <button class="chip" data-acao="c-pesar" aria-pressed="${!!r.pesar}">${I.balanca}Pesar também</button></div></div>
+      <button class="chip" data-acao="c-pesar" aria-pressed="${!!r.pesar}">${I.balanca}Pesar também</button></div>
+      ${fora.length ? `<p class="nota aviso-t">Fora desta sessão (continua prevista): ${esc(fora.map(nomeEtapaC).join(', '))}</p>` : ''}</div>
     <div class="curral-conta"><span><b>${itens.length}</b> ${itens.length === 1 ? 'passou' : 'passaram'}</span>
       <span>faltam <b>${faltam.length}</b>${faltam.length ? ` <button class="link" data-acao="c-faltam">${r.verFaltam ? 'esconder' : 'ver'}</button>` : ''}</span></div>
     ${r.verFaltam && faltam.length ? `<p class="nota">${esc(faltam.map((a) => a.n).join(', '))}</p>` : ''}
@@ -159,6 +186,8 @@ MONTAR.curral = function (r) {
     linhas.push(`Pesados: ${pes.length} · média ${kg(Math.round(soma / pes.length))}`);
     for (const x of pes) if (x.aviso) linhas.push(`${num(x.a)}: ${kg(x.kg)} ⚠️ ${x.aviso}`);
   }
+  const fora = r.mjs.map((id) => S.idx.manejos.get(id)).filter((m) => m && !r.on.includes(m.id) && m.st === 'previsto');
+  if (fora.length) linhas.push(`⚠️ Fora desta sessão (continua prevista): ${fora.map(nomeEtapaC).join(', ')}`);
   const faltam = faltamCurral(r);
   if (faltam.length) linhas.push(`Não passaram (${faltam.length}): ${faltam.map((a) => a.n).join(', ')}. Ficam como previstas.`);
   if (r.prev && Math.abs(diasEntre(r.prev, r.data)) > 2) linhas.push(`⚠️ Previsto para ${dtc(r.prev)}, lançado em ${dtc(r.data)}.`);
@@ -204,7 +233,7 @@ document.addEventListener('click', (ev) => {
     if (!g) return;
     return mexer((r) => {
       Object.assign(r, { g: g.k, f: g.f, prot: g.prot, lote: g.lote, prev: g.prev, mjs: g.mjs.map((m) => m.id), on: g.mjs.map((m) => m.id),
-        itens: [], num: '', sel: null, kgTxt: '', obsTxt: '', verFaltam: false });
+        itens: [], num: '', sel: null, kgTxt: '', obsTxt: '', verFaltam: false, avisoNovas: [] });
       if (Math.abs(diasEntre(g.prev, hojeISO())) <= 2 && g.prev <= hojeISO()) r.data = g.prev;
       window.scrollTo(0, 0);
     });
