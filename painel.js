@@ -406,8 +406,16 @@ function secCampo() {
     t: esc(m.texto), s: esc(`${m.autor || 'sem nome'} · ${dataHora(m.recebido)}`),
     v: `<span class="selo ${m.status === 'processado' ? 's-ativo' : m.status === 'erro' || m.status === 'ambigua' ? 's-vazia' : 's-solteira'}">${esc(NOME_MSG[m.status] || m.status)}</span>`,
   })), 'Nenhuma mensagem ainda.');
-  const comPasto = S.dados.fazendas.filter((f) => [...S.idx.pastos.values()].some((p) => p.f === f.id));
-  const pastos = comPasto.map((f) => {
+  const pastos = blocosPastos();
+  return `<div class="kpis">${S.dados.fazendas.map((f) => kpi(`Chuva · ${f.codigo} · 12 meses`, F.mm(total(f.codigo)), 'somando os registros do pluviômetro')).join('')}</div>
+    ${pastos}
+    ${bloco('Chuva por mês', 'milímetros, últimos 12 meses', `${legenda(S.dados.fazendas.map((f) => ({ rot: f.codigo, c: corP('fazenda', f.codigo) })))}${graf}`)}
+    ${bloco('Mensagens do bot', 'o que chegou por último', msgs)}`;
+}
+// mapa e lista de pastos de cada fazenda (painel Campo do dono e tela Pastos do vaqueiro)
+function blocosPastos(soDaFazendaEscolhida) {
+  const comPasto = S.dados.fazendas.filter((f) => (!soDaFazendaEscolhida || S.fazenda === 'todas' || f.codigo === S.fazenda) && [...S.idx.pastos.values()].some((p) => p.f === f.id));
+  return comPasto.map((f) => {
     const lista = [...S.idx.pastos.values()].filter((p) => p.f === f.id).sort((a, b) => a.id - b.id);
     const mapa = mapaFazenda(f.id);
     return bloco(`Pastos · ${f.codigo}`, 'onde cada lote está agora', `${mapa}${linhasLista(lista.map((p) => {
@@ -419,10 +427,6 @@ function secCampo() {
       };
     }), '')}`);
   }).join('');
-  return `<div class="kpis">${S.dados.fazendas.map((f) => kpi(`Chuva · ${f.codigo} · 12 meses`, F.mm(total(f.codigo)), 'somando os registros do pluviômetro')).join('')}</div>
-    ${pastos}
-    ${bloco('Chuva por mês', 'milímetros, últimos 12 meses', `${legenda(S.dados.fazendas.map((f) => ({ rot: f.codigo, c: corP('fazenda', f.codigo) })))}${graf}`)}
-    ${bloco('Mensagens do bot', 'o que chegou por último', msgs)}`;
 }
 
 // ------------------------------------------------------------------ mapa dos pastos
@@ -616,7 +620,7 @@ function janelaLote(i) {
   abrirJanela(`<h2>${esc(lote ? lote.nome : 'Lote')} · ${esc(pastos.map(nomeP).join(' + '))}</h2>
     <div class="abas-lote"><button data-acao="lote-aba" data-valor="resumo" aria-pressed="true">Resumo do lote</button><button data-acao="lote-aba" data-valor="cats" aria-pressed="false">Categorias</button></div>
     <div id="lote-resumo" class="lote-res"><p class="grande">${esc(F.int(cab))}</p><p>Cabeças${/junto com/i.test(o.obs || '') ? ' (e mais gado junto)' : ''}</p><dl>
-      ${linha('Peso médio', pm ? `${F.kg(Math.round(pm))} (${ult.length} pesados)` : 'sem pesagem')}
+      ${dono() ? linha('Peso médio', pm ? `${F.kg(Math.round(pm))} (${ult.length} pesados)` : 'sem pesagem') : ''}
       ${ha ? linha('Área', `${F.dec(ha, 1)} ha`) : ''}
       ${ha && pm ? linha('Lotação', `${F.int(Math.round((cab * pm) / ha))} kg/ha · ${F.dec((cab * pm) / 450 / ha, 1)} UA/ha`) : ha ? linha('Lotação', `${F.dec(cab / ha, 1)} cab/ha`) : ''}
       ${pasto && pasto.capim ? linha('Capim', pasto.capim) : ''}
@@ -627,5 +631,5 @@ function janelaLote(i) {
       <button class="botao" data-ir="#lancar/pasto/lote-${o.lote}">${I.pasto}<span>Mudar de pasto</span></button>
       <button class="botao" data-ir="#lancar/remedio/lote-${o.lote}">${I.saude}<span>Vacina ou remédio</span></button>
       <button class="botao" data-ir="#lancar/salga/lote-${o.lote}">${I.peso}<span>Salga de cocho</span></button></div>`
-      : botoesBreve([['balanca', 'Pesagem'], ['pasto', 'Mudar de pasto'], ['saude', 'Vacina ou remédio']])}`);
+      : '<p class="nota">Mudou o gado de pasto? Avise pelo bot do Telegram: “novilhas foram para o pasto 5”.</p>'}`);
 }

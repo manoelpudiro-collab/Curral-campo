@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.5 · 26/11/2026';
+const VERSAO_APP = '2.6 · 26/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -279,7 +279,7 @@ function abas(atual) {
   const a = (id, rot, ic) => `<button class="aba" data-ir="#${id}" ${atual === id ? 'aria-current="page"' : ''}><span class="aba-ic">${ic}</span><span>${rot}</span></button>`;
   return `<nav class="abas"><div class="abas-dentro">
     ${a('painel', 'Início', I.inicio)}${a('buscar', 'Rebanho', I.rebanho)}
-    ${a('lancar', 'Manejo', I.manejo)}
+    ${dono() ? a('lancar', 'Manejo', I.manejo) : ''}
     ${a('agenda', 'Agenda', I.agenda)}${a('mais', 'Mais', I.mais)}
   </div></nav>`;
 }
@@ -337,6 +337,7 @@ function telaAnimal(id) {
   const a = S.idx.porId.get(Number(id));
   if (!a) return `<section class="pagina"><button class="voltar" data-acao="voltar">${I.voltar}Voltar</button><p class="vazio">Esse animal não está na cópia deste celular. Atualize com internet.</p></section>`;
   marcarRecente(a.id);
+  if (!dono()) return fichaVaqueiro(a);
   const f = faz(a.f);
   const selos = [];
   selos.push(`<span class="selo s-${esc(a.st)}">${esc(NOME_ST[a.st] || a.st)}</span>`);
@@ -427,7 +428,7 @@ function blocoFamilia(a) {
   return `<div class="bloco"><h2 class="h2">${I.familia}Família</h2>
     <dl class="linhas">${linhas.join('')}</dl>
     ${filhos.length ? `<p class="nota"><b>${filhos.length} ${filhos.length === 1 ? 'cria' : 'crias'}</b></p>
-      <div class="lista">${filhos.map((x) => itemAnimal(x, `${NOME_CAT[x.c] || x.c} · nasceu ${dt(x.nasc)}`)).join('')}</div>` : ''}
+      <div class="lista">${filhos.map((x) => itemAnimal(x, x.nasc ? `${NOME_CAT[x.c] || x.c} · nasceu ${dt(x.nasc)}` : resumo(x))).join('')}</div>` : ''}
   </div>`;
 }
 
@@ -564,6 +565,85 @@ function blocoTempo(a) {
   </div>`;
 }
 
+// ------------------------------------------------------------------ vaqueiro: só consulta (etapa 7, 26/11)
+// A cópia dele (app_copia_vaqueiro) não traz R$, painel, histórico nem mapa. Lançar é pelo bot do Telegram.
+const DICA_BOT = `<div class="dica"><b>Para lançar, use o bot do Telegram</b><span>Escreva ou mande áudio para o @curral_md3c_bot. Ex.: “a 412 pariu um bezerro macho hoje”.</span></div>`;
+function proximosManejos(dias) {
+  const h = hojeISO();
+  const ate = new Date(Date.parse(h + 'T12:00:00Z') + dias * 864e5).toISOString().slice(0, 10);
+  return S.dados.manejos.filter((m) => m.st === 'previsto' && m.prev && m.prev >= h && m.prev <= ate
+    && (S.fazenda === 'todas' || faz(m.f).codigo === S.fazenda)).sort((x, y) => x.prev.localeCompare(y.prev) || x.id - y.id);
+}
+function telaInicioVaqueiro() {
+  const prox = proximosManejos(7);
+  const contar = (m) => S.dados.aplicacoes.filter((r) => r[0] === m.id && r[2] === 'previsto').length;
+  return `<section class="pagina">
+    <div class="faixa"><h1>${esc(saudacao())}${S.usuario && S.usuario.nome ? `, ${esc(S.usuario.nome.split(' ')[0])}` : ''}</h1><p>Fazendas MD e 3C</p>
+      <button class="busca-faixa" data-ir="#buscar">${I.busca}<span>Buscar animal pelo número</span></button></div>
+    ${DICA_BOT}
+    <div class="botoes">${[['busca', 'Buscar animal', '#buscar'], ['pasto', 'Mapa e pastos', '#pastos'], ['listas', 'Listas', '#listas'], ['nasc', 'Partos previstos', '#lista/partos'], ['agenda', 'Agenda', '#agenda']]
+      .map(([ic, t, h]) => `<button class="botao" data-ir="${h}">${I[ic]}<span>${esc(t)}</span></button>`).join('')}</div>
+    <div class="bloco"><div class="bloco-h"><h2 class="h2">${I.agenda}Manejos dos próximos 7 dias</h2></div>
+      ${prox.length ? `<div class="lista">${prox.map((m) => { const l = m.lote ? S.idx.lotes.get(m.lote) : null, n = contar(m);
+        return `<div class="item item-fixo"><span><span class="item-t">${esc(NOME_ETAPA[m.etapa] || m.etapa)}${m.prod && m.prod !== 'IATF' ? ` · ${esc(m.prod)}` : ''}</span>
+          <span class="item-m">${esc([faz(m.f).codigo, l ? `lote ${l.nome}` : null, n ? `${n} animais` : null].filter(Boolean).join(' · '))}</span></span>
+          <span class="item-v">${esc(dtc(m.prev))}<small>${esc(relativo(m.prev))}</small></span></div>`; }).join('')}</div>`
+        : '<p class="vazio">Nenhum manejo nos próximos 7 dias.</p>'}
+      <button class="link" data-ir="#agenda">Ver a agenda completa</button></div>
+  </section>`;
+}
+function telaPastosVaqueiro() {
+  const corpo = blocosPastos(true);
+  return `<section class="pagina"><button class="voltar" data-ir="#painel">${I.voltar}Início</button>
+    <h1 class="h1">Mapa e pastos</h1>${chipsFazenda()}
+    ${corpo || '<p class="vazio">Nenhum pasto com mapa nesta fazenda ainda.</p>'}
+    <p class="nota">Toque no gado no mapa para ver o lote. Mudança de pasto se avisa pelo bot do Telegram.</p></section>`;
+}
+// prenhez para o vaqueiro: quando emprenhou e quando vai parir (concepção: IATF, touro ou idade do DG)
+function blocoPrenhezVaqueiro(a) {
+  const p = S.idx.partos.get(a.n);
+  if (!p && a.sr !== 'prenha') return '';
+  const linhas = [];
+  if (p) {
+    linhas.push(['Situação', p.sit === 'prenha' ? 'prenha (confirmada no DG)' : 'aguardando diagnóstico']);
+    if (p.conc) linhas.push(['Emprenhou em', dt(p.conc)]);
+    if (p.prev) linhas.push(['Parto previsto', `${dt(p.prev)} · ${relativo(p.prev)}`]);
+  } else linhas.push(['Situação', 'prenha']);
+  if (a.dg) linhas.push(['Diagnóstico (DG)', dt(a.dg)]);
+  return `<div class="bloco"><h2 class="h2">${I.repro}Prenhez</h2>
+    <dl class="linhas">${linhas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+    ${!p ? '<p class="nota">Ainda não tem a data em que emprenhou, então não dá para prever o parto.</p>' : ''}</div>`;
+}
+function fichaVaqueiro(a) {
+  const f = faz(a.f);
+  const prox = proximaEtapa(a);
+  const selos = [];
+  if (a.sr) selos.push(seloSR(a.sr));
+  if (prox) selos.push('<span class="selo s-protocolo">Em protocolo</span>');
+  const ls = lotesDo(a);
+  const nums = [
+    ['Lote', ls.length ? ls.map((l) => l.nome).join(', ') : a.lote || '—', ''],
+    ['Próximo manejo', prox ? dtc(prox.data) : '—', prox ? `${NOME_ETAPA[prox.m.etapa] || prox.m.etapa} · ${relativo(prox.data)}` : 'nada previsto'],
+  ];
+  const prots = protocolosDo(a);
+  const parto = S.idx.partos.get(a.n);
+  if (parto && parto.prev) nums.push(['Parto previsto', dtc(parto.prev), relativo(parto.prev)]);
+  return `<section class="pagina">
+    <button class="voltar" data-acao="voltar">${I.voltar}Voltar</button>
+    <div class="ficha-id">
+      <div class="ficha-cab">${iconeCat(a.c)}<div><p class="ficha-num${a.n.length > 5 ? ' longo' : ''}">${esc(a.n)}</p><p class="ficha-cat cat-${esc(a.c || 'x')}">${esc(NOME_CAT[a.c] || a.c || 'Animal')}</p></div></div>
+      <p class="ficha-sub">${esc([a.s === 'F' ? 'fêmea' : a.s === 'M' ? 'macho' : null, f.nome].filter(Boolean).join(' · '))}${a.b ? ` · brinco ${esc(a.b)}` : ''}</p>
+      ${selos.length ? `<div class="selos">${selos.join('')}</div>` : ''}
+    </div>
+    <div class="numeros">${nums.map(([l, v, s]) => `<div class="numero"><p class="numero-l">${esc(l)}</p><p class="numero-v">${esc(v)}</p>${s ? `<p class="numero-s">${esc(s)}</p>` : ''}</div>`).join('')}</div>
+    ${blocoPrenhezVaqueiro(a)}
+    ${prots.length ? `<div class="bloco"><h2 class="h2">${I.repro}A seguir no protocolo</h2>${prots.map(blocoProtocolo).join('')}</div>` : ''}
+    ${blocoLoteEPasto(a)}
+    ${blocoFamilia(a)}
+    ${DICA_BOT}
+  </section>`;
+}
+
 // listas prontas
 const LISTAS = {
   todos: { t: 'Rebanho inteiro', cor: 'var(--acento)', f: () => true },
@@ -589,8 +669,9 @@ function animaisDaLista(id) {
   return r;
 }
 
+const LISTAS_VAQUEIRO = ['todos', 'protocolo', 'prenhas', 'partos', 'vazias', 'paridas', 'solteiras', 'bezerros'];
 function cartoesListas() {
-  return Object.entries(LISTAS).map(([id, L]) => {
+  return Object.entries(LISTAS).filter(([id]) => dono() || LISTAS_VAQUEIRO.includes(id)).map(([id, L]) => {
     const n = animaisDaLista(id).length;
     return `<button class="cartao" data-ir="#lista/${id}" data-cor="${esc(id)}"><span class="cartao-v">${n}</span><span class="cartao-l">${esc(L.t)}</span></button>`;
   }).join('');
@@ -711,7 +792,7 @@ function telaMais() {
   const tam = (ler(CH.copia) || '').length;
   return `<section class="pagina"><h1 class="h1">${esc(u.nome || 'Você')}</h1>
     <div class="bloco"><dl class="linhas">
-      <dt>Acesso</dt><dd>${esc(u.papel === 'dono' ? 'dono (vê custos)' : u.papel || '—')}</dd>
+      <dt>Acesso</dt><dd>${esc(u.papel === 'dono' ? 'dono (vê custos)' : `${u.papel || 'equipe'} (só consulta)`)}</dd>
       <dt>Cópia no celular</dt><dd>${esc(horaDe(S.quando) || '—')}</dd>
       <dt>Animais na cópia</dt><dd>${S.dados ? S.dados.animais.length : 0}</dd>
       <dt>Espaço usado</dt><dd>${(tam / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 0 })} KB</dd>
@@ -758,10 +839,11 @@ function desenhar(mensagem) {
     return;
   }
   const r = rota();
-  const telas = { painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais, lancar: () => telaLancar(r.arg) };
+  if (!dono() && ['painel', 'lancar'].includes(r.nome)) r.arg = null, r.nome = 'inicio';
+  const telas = { inicio: telaInicioVaqueiro, pastos: telaPastosVaqueiro, painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais, lancar: () => telaLancar(r.arg) };
   let abaGuardada = null;
   try { abaGuardada = sessionStorage.getItem('cd.aba'); } catch { /* nada */ }
-  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' || r.nome === 'listas' ? 'buscar' : r.nome === 'mapa' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
+  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' || r.nome === 'listas' ? 'buscar' : r.nome === 'mapa' || r.nome === 'inicio' || r.nome === 'pastos' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
   if (r.nome !== 'animal') { try { sessionStorage.setItem('cd.aba', aba); } catch { /* nada */ } }
   app.innerHTML = topo() + (telas[r.nome] || telas.painel)() + abas(aba);
   pintarCartoes(app); pintarBarras(app);
