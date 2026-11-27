@@ -231,7 +231,7 @@ const FORMS = {
       <div class="campo"><span>Que pesagem é?</span><div class="chips">
         <button class="chip" data-acao="l-desmama" data-valor="" aria-pressed="${!r.desmama}">Pesagem comum</button>
         <button class="chip" data-acao="l-desmama" data-valor="1" aria-pressed="${!!r.desmama}">Desmama (apartação)</button></div></div>
-      ${r.desmama ? '<p class="nota">Peso de desmama: o app calcula o peso aos 205 dias de cada bezerro e o kg desmamado por vaca.</p>' : ''}
+      ${r.desmama ? '<p class="nota">Peso de desmama: o app calcula o peso aos 205 dias de cada bezerro e o kg desmamado por vaca. No tronco, um por um (pela mãe, com brinco novo e lote), use <a href="#lancar/desmama">Manejo › Desmama</a>.</p>' : ''}
       ${typeof blocoPlanilha === 'function' ? blocoPlanilha(r) : ''}
       <div class="pesar">
         <label class="campo"><span>Número</span><input id="l-num" inputmode="numeric" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" value="${esc(r.num || '')}" placeholder="brinco"></label>
@@ -618,7 +618,7 @@ document.addEventListener('input', (ev) => {
 });
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Enter' || !ev.target.closest || !ev.target.closest('.form-lancar')) return;
-  if (/^[cg]-/.test(ev.target.id || '')) return;   // modo Curral e DG cuidam do Enter deles (curral.js, dg.js)
+  if (/^[cgd]-/.test(ev.target.id || '')) return;   // modo Curral, DG e desmama cuidam do Enter deles (curral.js, dg.js, desmama.js)
   if (ev.target.id === 'r-num') { ev.preventDefault(); $('[data-acao="l-rem-add"]').click(); return; }
   if (ev.target.id === 'l-num' && $('#l-kg')) { ev.preventDefault(); $('#l-kg').focus(); return; }
   if (ev.target.id === 'l-kg') { ev.preventDefault(); $('[data-acao="l-add"]').click(); return; }
@@ -639,6 +639,9 @@ function pendentesDoAnimal(a) {
     }
     if (x.tipo === 'curral') for (const it of d.itens || []) {
       if (it.a === a.id) l.push({ d: d.data, t: `Curral · ${(it.m || []).length} etapa(s) feita(s)${it.ia ? ` · sêmen ${it.ia.sem}` : ''}${it.kg ? ` · ${kg(it.kg)}` : ''}` });
+    }
+    if (x.tipo === 'desmama') for (const it of d.itens || []) {
+      if (it.a === a.id) l.push({ d: d.data, t: `Desmama · ${kg(it.kg)}${it.brinco ? ` · brinco novo ${it.brinco}` : ''}` });
     }
     if (x.tipo === 'dg') for (const it of d.itens || []) {
       if (it.a === a.id) l.push({ d: d.data, t: `Diagnóstico de gestação · ${it.r === 'p' ? 'prenha' : 'vazia'}` });

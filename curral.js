@@ -124,6 +124,8 @@ FORMS.curral = function (r) {
     return `${cabForm('curral')}
       <p class="nota">Escolha o manejo. Depois é só digitar o número de cada animal que passar no tronco. Funciona sem internet.</p>
       ${avisoCopiaVelha()}
+      <div class="opcoes"><button class="opcao" data-ir="#lancar/desmama"><b>Desmama (apartação)</b>
+        <small>bezerro por bezerro pelo número da mãe: peso, brinco novo, lote; a vaca passa a solteira</small></button></div>
       ${perto.length ? `<div class="opcoes">${perto.map(item).join('')}</div>` : '<p class="vazio">Nenhum manejo previsto para estes dias.</p>'}
       ${longe.length ? `<details class="tempo-mais"><summary>Outros manejos previstos (${longe.length})</summary><div class="opcoes">${longe.map(item).join('')}</div></details>` : ''}`;
   }

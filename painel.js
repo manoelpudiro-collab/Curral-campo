@@ -545,7 +545,7 @@ function tipoLote(l) {
   if (/abate/.test(n)) return 'abate';
   if (/parid/.test(n)) return 'paridas';
   if (/prenh/.test(n)) return 'prenhas';
-  if (/bezerr/.test(n)) return 'bezerros';
+  if (/bezerr|desmam/.test(n)) return 'bezerros';
   if (/novilh/.test(n) || (l && l.cat === 'novilha')) return 'novilhas';
   return 'gado';
 }
