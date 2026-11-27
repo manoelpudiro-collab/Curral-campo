@@ -72,10 +72,23 @@ function noProtocolo(a, r) {
 const idIA = (r) => (r.on || []).find((id) => (S.idx.manejos.get(id) || {}).etapa === 'inseminacao') || null;
 function sugestoesIA() {
   const sem = new Set((S.dados.produtos || []).filter((p) => p.cat === 'semen').map((p) => p.nome));
-  const ins = new Set();
+  const ins = new Set((S.dados.insem || []).map((i) => i.nome));
   for (const i of S.dados.ins || []) { if (i.sem) sem.add(i.sem); if (i.ins) ins.add(i.ins); }
   const op = (l) => [...l].sort((x, y) => x.localeCompare(y, 'pt-BR')).map((v) => `<option value="${esc(v)}">`).join('');
   return `<datalist id="c-sem-lista">${op(sem)}</datalist><datalist id="c-ins-lista">${op(ins)}</datalist>`;
+}
+// padrão ao abrir a IATF (pedido do produtor, 27/11): inseminador marcado como padrão no cadastro e o sêmen, se só houver um
+const insPadrao = () => ((S.dados.insem || []).find((i) => i.padrao) || {}).nome || '';
+function semPadrao() {
+  const l = (S.dados.produtos || []).filter((p) => p.cat === 'semen');
+  return l.length === 1 ? l[0].nome : '';
+}
+// botões para trocar o inseminador na hora (vale para as próximas vacas; as que já estão na lista ficam como estão)
+function botoesIns(r) {
+  const l = S.dados.insem || [];
+  if (!l.length) return '';
+  const atual = (r.insS || '').trim().toLowerCase();
+  return `<div class="chips">${l.map((i) => `<button class="chip" data-acao="c-ins-op" data-valor="${esc(i.nome)}" aria-pressed="${i.nome.toLowerCase() === atual}">${esc(i.nome)}</button>`).join('')}</div>`;
 }
 function campoIA(r) {
   if (!idIA(r)) return '';
@@ -83,7 +96,8 @@ function campoIA(r) {
     <label class="campo"><span>Sêmen (ou touro) desta sessão</span><input id="c-sem-s" list="c-sem-lista" autocomplete="off" autocapitalize="characters"
       enterkeyhint="next" value="${esc(r.semS || '')}" placeholder="nome do touro do sêmen"></label>
     <label class="campo"><span>Inseminador</span><input id="c-ins-s" list="c-ins-lista" autocomplete="off" enterkeyhint="done" value="${esc(r.insS || '')}" placeholder="quem inseminou"></label>
-    <p class="nota">Vale para todas. Se uma vaca levar outro sêmen, mude no cartão dela.</p>${sugestoesIA()}</div>`;
+    ${botoesIns(r)}
+    <p class="nota">Vale para todas. Se uma vaca levar outro sêmen, mude no cartão dela. Trocou o inseminador no meio? Toque no nome: vale para as próximas.</p>${sugestoesIA()}</div>`;
 }
 const padraoDo = (a, r) => { const st = linhasDo(a, r); return r.on.filter((id) => st.get(id) === 'previsto'); };
 function naFila(id, r) {
@@ -271,6 +285,7 @@ document.addEventListener('click', (ev) => {
     return mexer((r) => {
       Object.assign(r, { g: g.k, f: g.f, prot: g.prot, lote: g.lote, prev: g.prev, mjs: g.mjs.map((m) => m.id), on: g.mjs.map((m) => m.id),
         itens: [], num: '', sel: null, kgTxt: '', obsTxt: '', verFaltam: false, avisoNovas: [] });
+      if (g.mjs.some((m) => m.etapa === 'inseminacao')) { r.semS = semPadrao(); r.insS = insPadrao(); }
       if (Math.abs(diasEntre(g.prev, hojeISO())) <= 2 && g.prev <= hojeISO()) r.data = g.prev;
       window.scrollTo(0, 0);
     });
@@ -300,6 +315,7 @@ document.addEventListener('click', (ev) => {
     const sel = r.sel && r.sel.a === a.id ? r.sel.m : padraoDo(a, r);
     r.sel = { a: a.id, m: sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id] };
   });
+  if (acao === 'c-ins-op') return mexer((r) => { r.insS = v; });
   if (acao === 'c-add') {
     let ok = false;
     mexer((r) => { ok = curralPorNaLista(r); });

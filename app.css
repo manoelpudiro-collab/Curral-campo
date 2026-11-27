@@ -489,3 +489,5 @@ button { font: inherit; color: inherit; }
 .cmp-t { font-size: 13.5px; color: var(--apagado); font-variant-numeric: tabular-nums; }
 .faltas { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 14.5px; line-height: 1.4; }
 .faltas .link { padding: 0; }
+/* 2.12: botões do inseminador na IATF quebram linha (todos à vista no tronco) */
+.curral-ia .chips { flex-wrap: wrap; margin: 4px 0 8px; }
