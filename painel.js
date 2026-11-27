@@ -9,6 +9,8 @@ const META = {
   natalidade: { alvo: 80, tipo: 'min', escala: 100, texto: 'meta 80%' },
   mortalidade: { alvo: 2, tipo: 'max', escala: 10, texto: 'até 2%' },
   gmd: { alvo: 0.481, tipo: 'min', escala: 1, texto: 'meta 0,481 kg/dia' },
+  p205: { alvo: 200, tipo: 'min', escala: 280, texto: 'meta 200 kg' },
+  kgvaca: { alvo: 150, tipo: 'min', escala: 220, texto: 'meta 150 kg' },
 };
 // cor fixa de cada coisa (a mesma em todos os gráficos e nos selos da ficha)
 const CORP = {
@@ -430,6 +432,8 @@ function secDesempenho() {
     kpi('Suplemento por cabeça por dia', sp ? `${F.int(sp.g_cab_dia)} g` : '—', sp ? `${esc(sp.produto)} · lote ${esc(sp.lote)}` : 'nenhum trato nos últimos 90 dias'),
   ];
   if (dono()) kpis.push(kpi('Custo do suplemento por cabeça por dia', sp ? F.brl(sp.custo_cab_dia) : '—', sp ? `${esc(F.brl(sp.custo))} em ${esc(F.int(sp.dias))} dias` : ''));
+  const desm = blocosDesmama();
+  kpis.push(...desm.kpis);
   const gmdL = linhasLista(g.map((x) => ({
     t: `${esc(x.lote)} <small>${esc(x.fazenda)}</small>`, s: esc(`${F.int(x.animais)} animais · ${dtc(x.de)} a ${dtc(x.ate)}`), v: esc(F.gmd(x.gmd_kg_dia)),
   })), 'Ainda não há animais com duas pesagens nos lotes ativos.');
@@ -438,8 +442,10 @@ function secDesempenho() {
     v: `${esc(F.int(x.g_cab_dia))} g<small>${dono() && x.custo_cab_dia != null ? `${esc(F.brl(x.custo_cab_dia))}/cab./dia` : 'por cab./dia'}</small>`,
   })), 'Nenhum trato nos últimos 90 dias.');
   return `<div class="kpis">${kpis.join('')}</div>
+    ${bloco('Evolução do peso por lote', 'peso médio de quem está no lote hoje, em cada pesagem', `${evolucaoLotes()}<p class="nota">Toque num ponto para ver a média e quantos foram pesados.</p>`)}
     ${bloco('Peso de cada animal', 'última pesagem, por lote · cada ponto é um animal', `${pontosPorLote(P('pesos'))}<p class="nota">O traço mostra a média do lote. Toque num ponto para ver o animal.</p>`)}
     ${bloco('Ganho de peso por lote', 'entre as duas últimas pesagens', `${gmdL}<p class="nota">Referência das fazendas top (Inttegra): 0,481 kg por dia no ano.</p>`)}
+    ${desm.html}
     ${bloco('Suplementação por lote', 'últimos 90 dias', supl)}`;
 }
 

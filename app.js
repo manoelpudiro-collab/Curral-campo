@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.8 · 27/11/2026';
+const VERSAO_APP = '2.9 · 27/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -370,6 +370,7 @@ function telaAnimal(id) {
     ${blocoReproducao(a)}
     ${blocoTempo(a)}
     ${blocoFamilia(a)}
+    ${blocoCrias(a)}
     ${blocoLoteEPasto(a)}
     ${blocoPeso(a, ps)}
     ${blocoCusto(a)}
@@ -459,8 +460,11 @@ function blocoPeso(a, ps) {
   const g = ant ? gmd(ant, ultimo) : null;
   if (g !== null) linhas.push(['Ganho', `${g.toLocaleString('pt-BR')} g/dia desde ${dtc(ant.d)} (${kg(ultimo.p - ant.p)} em ${diasEntre(ant.d, ultimo.d)} dias)`]);
   if (ps.length > 2) linhas.push(['Desde a 1ª pesagem', `${kg(ultimo.p - ps[0].p)} em ${diasEntre(ps[0].d, ultimo.d)} dias`]);
+  const p2 = linhaP205(a, ps);
+  if (p2) linhas.push(p2);
   linhas.push(['Pesagens', String(ps.length)]);
   return `<div class="bloco"><h2 class="h2">${I.peso}Peso</h2>
+    ${graficoPesoAnimal(a, ps)}
     <dl class="linhas">${linhas.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>`;
 }
 const gmd = (ant, e) => { const d = diasEntre(ant.d, e.d); return d > 0 ? Math.round((e.p - ant.p) / d * 1000) : null; };

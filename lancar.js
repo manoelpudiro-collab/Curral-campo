@@ -226,6 +226,10 @@ const FORMS = {
       ${lotes.length ? `<div class="campo"><span>Lote (opcional, mostra quem falta pesar)</span><div class="chips">
         <button class="chip" data-acao="l-lote" data-valor="" aria-pressed="${!r.lote}">Nenhum</button>
         ${lotes.map((l) => `<button class="chip" data-acao="l-lote" data-valor="${l.id}" aria-pressed="${r.lote === l.id}">${esc(l.nome)} <small>${esc(faz(l.f).codigo)}</small></button>`).join('')}</div></div>` : ''}
+      <div class="campo"><span>Que pesagem é?</span><div class="chips">
+        <button class="chip" data-acao="l-desmama" data-valor="" aria-pressed="${!r.desmama}">Pesagem comum</button>
+        <button class="chip" data-acao="l-desmama" data-valor="1" aria-pressed="${!!r.desmama}">Desmama (apartação)</button></div></div>
+      ${r.desmama ? '<p class="nota">Peso de desmama: o app calcula o peso aos 205 dias de cada bezerro e o kg desmamado por vaca.</p>' : ''}
       <div class="pesar">
         <label class="campo"><span>Número</span><input id="l-num" inputmode="numeric" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" value="${esc(r.num || '')}" placeholder="brinco"></label>
         <label class="campo"><span>Peso (kg)</span><input id="l-kg" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(r.kgTxt || '')}" placeholder="kg"></label>
@@ -382,10 +386,10 @@ function montar(tipo, r) {
   if (tipo === 'pesagem') {
     const itens = r.itens || [];
     const soma = itens.reduce((t, x) => t + x.kg, 0);
-    return { dados: { data: r.data, itens: itens.map((x) => ({ a: x.a, kg: x.kg })) },
-      resumo: `Pesagem ${d}: ${itens.length} ${itens.length === 1 ? 'animal' : 'animais'}, média ${kg(Math.round(soma / itens.length))}`,
+    return { dados: { data: r.data, itens: itens.map((x) => ({ a: x.a, kg: x.kg })), ...(r.desmama ? { desmama: true } : {}) },
+      resumo: `Pesagem${r.desmama ? ' da desmama' : ''} ${d}: ${itens.length} ${itens.length === 1 ? 'animal' : 'animais'}, média ${kg(Math.round(soma / itens.length))}`,
       linhas: itens.map((x) => `${(S.idx.porId.get(x.a) || {}).n || '?'}: ${kg(x.kg)}${x.aviso ? ` ⚠️ ${x.aviso}` : ''}`),
-      total: `${itens.length} ${itens.length === 1 ? 'animal' : 'animais'} · ${kg(soma)} no total · média ${kg(Math.round(soma / itens.length))}` };
+      total: `${r.desmama ? 'Pesagem da desmama · ' : ''}${itens.length} ${itens.length === 1 ? 'animal' : 'animais'} · ${kg(soma)} no total · média ${kg(Math.round(soma / itens.length))}` };
   }
   if (tipo === 'pasto') {
     const l = S.idx.lotes.get(r.lote), o = S.idx.pastoDoLote.get(r.lote);
@@ -524,6 +528,7 @@ document.addEventListener('click', (ev) => {
     return;
   }
   if (acao === 'l-dia') return mexer((r) => { r.data = v; });
+  if (acao === 'l-desmama') return mexer((r) => { r.desmama = !!v; });
   if (acao === 'l-lote') return mexer((r, t) => { r.lote = v ? Number(v) : null; if (t === 'pasto' || t === 'salga') r.pasto = null; });
   if (acao === 'l-faz') return mexer((r, t) => { r.f = v === 'ambas' ? 'ambas' : Number(v); if (t === 'pasto' || t === 'salga') { r.lote = null; r.pasto = null; } });
   if (acao === 'l-pasto') return mexer((r, t) => { r.pasto = Number(v); if (t === 'salga') r.lote = null; });
@@ -617,7 +622,7 @@ function pendentesDoAnimal(a) {
   const l = [];
   for (const x of fila()) {
     const d = x.dados || {};
-    if (x.tipo === 'pesagem') for (const it of d.itens || []) { if (it.a === a.id) l.push({ d: d.data, t: `Pesagem · ${kg(it.kg)}` }); }
+    if (x.tipo === 'pesagem') for (const it of d.itens || []) { if (it.a === a.id) l.push({ d: d.data, t: `Pesagem${d.desmama ? ' da desmama' : ''} · ${kg(it.kg)}` }); }
     if (x.tipo === 'morte' && d.a === a.id) l.push({ d: d.data, t: `Morte${d.causa ? ` · ${d.causa}` : ''}` });
     if (x.tipo === 'nascimento' && d.mae === a.id) l.push({ d: d.data, t: `Pariu ${d.sexo === 'M' ? 'um bezerro' : 'uma bezerra'}` });
     if (x.tipo === 'remedio' && ((d.itens || []).includes(a.id) || (d.alvo === 'lote' && (a.lotes || []).includes(d.lote)))) {
