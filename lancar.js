@@ -232,6 +232,7 @@ const FORMS = {
         <button class="chip" data-acao="l-desmama" data-valor="" aria-pressed="${!r.desmama}">Pesagem comum</button>
         <button class="chip" data-acao="l-desmama" data-valor="1" aria-pressed="${!!r.desmama}">Desmama (apartação)</button></div></div>
       ${r.desmama ? '<p class="nota">Peso de desmama: o app calcula o peso aos 205 dias de cada bezerro e o kg desmamado por vaca.</p>' : ''}
+      ${typeof blocoPlanilha === 'function' ? blocoPlanilha(r) : ''}
       <div class="pesar">
         <label class="campo"><span>Número</span><input id="l-num" inputmode="numeric" autocomplete="off" autocapitalize="characters" spellcheck="false" enterkeyhint="next" value="${esc(r.num || '')}" placeholder="brinco"></label>
         <label class="campo"><span>Peso (kg)</span><input id="l-kg" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(r.kgTxt || '')}" placeholder="kg"></label>
@@ -241,7 +242,8 @@ const FORMS = {
       ${itens.length ? `<p class="nota"><b>${itens.length} ${itens.length === 1 ? 'animal' : 'animais'}</b> · média ${esc(kg(Math.round(soma / itens.length)))}${lote ? ` · faltam ${faltam.length} do lote ${esc(lote.nome)}` : ''}</p>
         <div class="lista">${itens.slice().reverse().map((x) => { const a = S.idx.porId.get(x.a);
           return `<div class="item item-fixo"><span><span class="item-t">${esc(a ? a.n : '?')} · ${esc(kg(x.kg))}</span>
-            ${x.aviso ? `<span class="item-m aviso-t">⚠️ ${esc(x.aviso)}</span>` : `<span class="item-m">${esc(a ? resumo(a) : '')}</span>`}</span>
+            ${x.aviso ? `<span class="item-m aviso-t">⚠️ ${esc(x.aviso)}</span>` : `<span class="item-m">${esc(a ? resumo(a) : '')}</span>`}
+            ${x.orig ? `<span class="item-m">planilha: “${esc(x.orig)}”</span>` : ''}</span>
             <button class="link perigo-t" data-acao="l-tirar" data-valor="${x.a}">tirar</button></div>`; }).join('')}</div>`
         : '<p class="vazio">Nenhum animal na lista ainda.</p>'}
       ${lote && faltam.length && itens.length ? `<details class="tempo-mais"><summary>Ver quem falta pesar (${faltam.length})</summary><p class="nota">${esc(faltam.map((a) => a.n).join(', '))}</p></details>` : ''}

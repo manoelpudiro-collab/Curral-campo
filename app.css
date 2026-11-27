@@ -494,3 +494,10 @@ button { font: inherit; color: inherit; }
 
 /* venda (2.13): a conta aparece em linhas */
 .conta-venda { white-space: pre-line; color: var(--texto); background: var(--cartao, transparent); border-radius: 10px; padding: 8px 10px; }
+/* planilha da balança (2.14) */
+.arquivo { position: relative; display: flex; align-items: center; justify-content: center; margin: 4px 0; }
+.arquivo input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.planilha .lista { margin-top: 6px; }
+.pl-falta { margin-top: 10px; }
+.pl-por { display: flex; align-items: center; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+.pl-por input { width: 120px; background: var(--chao); color: var(--texto); border: 1.5px solid var(--linha); border-radius: 10px; padding: 8px 10px; font-size: 17px; }
