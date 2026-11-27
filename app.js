@@ -361,6 +361,7 @@ function telaAnimal(id) {
       <p class="ficha-sub">${esc([a.s === 'F' ? 'fêmea' : a.s === 'M' ? 'macho' : null, f.nome].filter(Boolean).join(' · '))}${a.b ? ` · brinco ${esc(a.b)}` : ''}</p>
       <div class="selos">${selos.join('')}</div>
     </div>
+    ${a.st === 'ativo' && typeof avisoCarencia === 'function' ? avisoCarencia(a) : ''}
     <div class="numeros">${nums.map(([l, v, s]) => `<div class="numero"><p class="numero-l">${esc(l)}</p><p class="numero-v">${esc(v)}</p><p class="numero-s">${esc(s)}</p></div>`).join('')}</div>
     ${a.st === 'ativo' && dono() ? `<div class="chips atalhos">
       <button class="chip" data-ir="#lancar/pesagem/${a.id}">${I.balanca}Pesar</button>
@@ -717,12 +718,13 @@ function avisos() {
       l.push({ t: `${NOME_ETAPA[m.etapa] || m.etapa}${m.prod && m.prod !== 'IATF' ? ` · ${m.prod}` : ''}`, s: `${faz(m.f).codigo} · ${dtc(m.prev)} (${relativo(m.prev)})` });
     }
   }
-  return l;
+  return l.concat(typeof avisosSanidade === 'function' ? avisosSanidade() : []);
 }
 const nAvisos = () => avisos().length;
 function janelaAvisos() {
   const l = avisos();
-  abrirJanela(`<h2>Avisos</h2>${l.length ? `<div class="lista">${l.map((x) => `<div class="item item-fixo"><span><span class="item-t">${esc(x.t)}</span><span class="item-m">${esc(x.s)}</span></span></div>`).join('')}</div>`
+  abrirJanela(`<h2>Avisos</h2>${l.length ? `<div class="lista">${l.map((x) => (x.ir ? `<button class="item" data-ir="${esc(x.ir)}" data-acao="fechar"><span><span class="item-t">${esc(x.t)}</span><span class="item-m">${esc(x.s)}</span></span>${I.seta}</button>`
+      : `<div class="item item-fixo"><span><span class="item-t">${esc(x.t)}</span><span class="item-m">${esc(x.s)}</span></span></div>`)).join('')}</div>`
     : '<p class="vazio">Nenhum aviso agora.</p>'}`);
 }
 

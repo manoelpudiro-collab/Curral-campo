@@ -163,7 +163,7 @@ const bloco = (titulo, sub, corpo) => `<div class="bloco"><div class="bloco-h"><
 const meses12 = () => (P('nascimentos_mes').length ? P('nascimentos_mes').map((r) => r.mes) : P('financeiro_mes').map((r) => r.mes));
 
 // ------------------------------------------------------------------ abas
-const SECOES = [['geral', 'Geral'], ['rebanho', 'Rebanho'], ['reproducao', 'Reprodução'], ['desempenho', 'Desempenho'], ['financeiro', 'Financeiro'], ['campo', 'Campo']];
+const SECOES = [['geral', 'Geral'], ['rebanho', 'Rebanho'], ['reproducao', 'Reprodução'], ['desempenho', 'Desempenho'], ['sanidade', 'Sanidade'], ['financeiro', 'Financeiro'], ['campo', 'Campo']];
 
 function saudacao() {
   const h = new Date().getHours();
@@ -185,7 +185,7 @@ function anel(rotulo, v, chave, neutro) {
     <p>${esc(rotulo)}</p><small>${esc(m.texto)} · <b>${esc(neutro ? (typeof neutro === 'string' ? neutro : 'antes da IATF') : bom ? 'na meta' : 'fora')}</b></small></div>`;
 }
 const ATALHOS = [['rebanho', 'Rebanho', '#painel/rebanho'], ['repro', 'Reprodução', '#painel/reproducao'], ['peso', 'Desempenho', '#painel/desempenho'],
-  ['pasto', 'Mapa e pastos', '#painel/campo'], ['agenda', 'Agenda', '#agenda'], ['listas', 'Listas', '#listas'],
+  ['pasto', 'Mapa e pastos', '#painel/campo'], ['saude', 'Sanidade e estoque', '#painel/sanidade'], ['agenda', 'Agenda', '#agenda'], ['listas', 'Listas', '#listas'],
   ['dinheiro', 'Finanças', '#painel/financeiro'], ['busca', 'Buscar animal', '#buscar'], ['hist', 'Lançamentos', '#painel/geral-lanc'],
   ['pdf', 'Relatórios em PDF', '#relatorio']];
 function telaInicio() {
@@ -195,7 +195,7 @@ function telaInicio() {
   const fz = P('fazendas');
   const fazC = (cod, nome) => { const f = fz.find((x) => x.fazenda === cod) || {};
     return `<div class="faz-c"><small>${esc(nome)}</small><b>${esc(F.int(f.cabecas))}</b><span>${esc(F.int(f.nascimentos_12m))} nasc. · ${esc(F.int(f.mortes_12m))} mortes (12 m)</span></div>`; };
-  const at = ATALHOS.filter(([, , h]) => !['#painel/financeiro', '#relatorio'].includes(h) || dono());
+  const at = ATALHOS.filter(([, , h]) => !['#painel/financeiro', '#relatorio', '#painel/sanidade'].includes(h) || dono());
   return `<section class="pagina">
     <div class="faixa"><h1>Fazendas MD e 3C</h1><p>${esc((S.usuario && S.usuario.nome) || '')} · ${esc(F.int(r.cabecas))} cabeças</p>
       <button class="busca-faixa" data-ir="#buscar">${I.busca}<span>Buscar animal pelo número</span></button></div>
@@ -218,9 +218,9 @@ function telaInicio() {
 function telaPainel(secao) {
   if (!S.dados.painel) return '<section class="pagina"><p class="vazio">Atualize com internet para baixar o painel.</p></section>';
   if (!secao) return telaInicio();
-  const secoes = SECOES.filter(([id]) => id !== 'financeiro' || dono());
+  const secoes = SECOES.filter(([id]) => !['financeiro', 'sanidade'].includes(id) || dono());
   const atual = secao === 'geral-lanc' ? 'geral' : secoes.some(([id]) => id === secao) ? secao : 'geral';
-  const corpo = { geral: secGeral, rebanho: secRebanho, reproducao: secReproducao, desempenho: secDesempenho, financeiro: secFinanceiro, campo: secCampo }[atual]();
+  const corpo = { geral: secGeral, rebanho: secRebanho, reproducao: secReproducao, desempenho: secDesempenho, sanidade: secSanidade, financeiro: secFinanceiro, campo: secCampo }[atual]();
   return `<section class="pagina">
     <button class="voltar" data-ir="#painel">${I.voltar}Início</button>
     <div class="chips secoes" role="tablist">${secoes.map(([id, nome]) => `<button class="chip" role="tab" data-ir="#painel/${id}" aria-pressed="${id === atual}">${esc(nome)}</button>`).join('')}</div>
