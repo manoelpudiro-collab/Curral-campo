@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.9 · 27/11/2026';
+const VERSAO_APP = '2.11 · 27/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -102,6 +102,7 @@ const I = {
   bezerro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9.5 7.6 14c0 3 2 5.5 4.4 5.5s4.4-2.5 4.4-5.5L16 9.5"/><path d="M8 9.5c-1.6 0-3-.8-3.6-2.2M16 9.5c1.6 0 3-.8 3.6-2.2M8 9.5c1-1.2 2.4-1.8 4-1.8s3 .6 4 1.8"/><circle cx="10" cy="12.5" r=".6" fill="currentColor"/><circle cx="14" cy="12.5" r=".6" fill="currentColor"/></svg>',
   touro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4c.5 3 2.5 4.5 5 4.5h8c2.5 0 4.5-1.5 5-4.5"/><path d="M7.5 8.5 7 14c0 3 2 6 5 6s5-3 5-6l-.5-5.5"/><path d="M10 17h4"/><circle cx="9.5" cy="12" r=".6" fill="currentColor"/><circle cx="14.5" cy="12" r=".6" fill="currentColor"/></svg>',
   pasto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 20h18M6 20c0-4 1-7 3-9M12 20c0-5 0-8 1-11M18 20c0-4-1-6-3-8"/></svg>',
+  dinheiro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 9.5v5M18 9.5v5"/></svg>',
   pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
 };
 

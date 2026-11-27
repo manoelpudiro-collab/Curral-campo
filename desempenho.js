@@ -130,7 +130,11 @@ function expostasDaSafra(f, ano) {
   const prots = new Set(S.dados.protocolos.filter((p) => p.f === f && p.d0 && p.d0 >= ini && p.d0 <= fim).map((p) => p.id));
   if (!prots.size) return null;
   const ids = new Set();
-  for (const r of S.dados.aplicacoes) { const m = S.idx.manejos.get(r[0]); if (m && prots.has(m.prot)) ids.add(r[1]); }
+  const comIA = new Set(S.dados.manejos.filter((m) => prots.has(m.prot) && m.etapa === 'inseminacao').map((m) => m.prot));
+  for (const r of S.dados.aplicacoes) {
+    const m = S.idx.manejos.get(r[0]);
+    if (m && prots.has(m.prot) && (!comIA.has(m.prot) || m.etapa === 'inseminacao')) ids.add(r[1]);   // exposta = estava na IATF
+  }
   return ids.size || null;
 }
 function dadosDesmama() {

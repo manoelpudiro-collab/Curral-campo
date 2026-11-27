@@ -456,7 +456,7 @@ function secFinanceiro() {
     kpi('Gastos do ano', F.brl(r.gasto_ano), 'protocolos, produtos usados e despesas'),
     kpi('Receitas do ano', F.brl(r.receita_ano), 'vendas de animais e outras receitas'),
     kpi('Resultado do ano', F.brl(r.resultado_ano), 'receitas menos gastos'),
-    kpi('Gasto por cabeça por mês', F.brl(r.desembolso_cab_mes), `média de ${esc(F.brl(r.custo_medio_cabeca))} no ano por cabeça com custo`),
+    (typeof kpiGastoCabMes === 'function' && kpiGastoCabMes()) || kpi('Gasto por cabeça por mês', F.brl(r.desembolso_cab_mes), `média de ${esc(F.brl(r.custo_medio_cabeca))} no ano por cabeça com custo`),
   ];
   const fm = P('financeiro_mes');
   const fluxo = colunas(fm.map((x) => mesCurto(x.mes)), [{ nome: 'receitas', c: corP('fin', 'receitas'), v: fm.map((x) => x.receitas) }, { nome: 'despesas', c: corP('fin', 'despesas'), v: fm.map((x) => x.despesas) }], { fv: F.brl0 });
@@ -474,6 +474,7 @@ function secFinanceiro() {
     v: esc(F.brl(e.valor_em_estoque)),
   })), 'Nenhum produto com movimento.');
   return `<div class="kpis">${kpis.join('')}</div>
+    ${typeof blocoComparacao === 'function' ? blocoComparacao() : ''}
     ${bloco('Receitas e despesas por mês', 'últimos 12 meses', `${legenda([{ rot: 'Receitas', c: corP('fin', 'receitas') }, { rot: 'Despesas', c: corP('fin', 'despesas') }])}${fluxo}`)}
     ${bloco('Gasto do ano por centro de custo', '', centro)}
     ${bloco('Gasto por mês', 'por centro de custo', `${legenda(centros.map((c) => ({ rot: NOME_CENTRO[c] || c, c: corP('centro', c) })))}${porMes}`)}

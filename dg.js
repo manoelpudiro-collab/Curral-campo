@@ -4,9 +4,11 @@
 // O sistema grava o DG, põe o resultado na inseminação da vaca e muda a situação dela (prenha / vazia). Desfazer volta tudo.
 'use strict';
 
-// fêmeas que passaram pelo protocolo (qualquer etapa) e ainda estão no rebanho
+// fêmeas expostas do protocolo que ainda estão no rebanho: as que estavam na etapa de inseminação (2.11: antes contava
+// qualquer etapa e pegava quem só levou brinco de mosca, como a 0034, a 0210 e a 0081). Sem etapa de inseminação: qualquer etapa.
 function expostasDo(protId) {
-  const mjs = new Set(S.dados.manejos.filter((m) => m.prot === protId).map((m) => m.id));
+  const ms = S.dados.manejos.filter((m) => m.prot === protId), ia = ms.filter((m) => m.etapa === 'inseminacao');
+  const mjs = new Set((ia.length ? ia : ms).map((m) => m.id));
   const ids = new Set();
   for (const x of S.dados.aplicacoes) if (mjs.has(x[0])) ids.add(x[1]);
   return [...ids].map((id) => S.idx.porId.get(id)).filter((a) => a && a.st === 'ativo' && a.s === 'F');

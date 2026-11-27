@@ -475,3 +475,17 @@ button { font: inherit; color: inherit; }
 .chip.cetapa[aria-pressed="false"] { border-color: var(--atencao); color: var(--atencao); }
 .form-lancar .chip svg { width: 16px; height: 16px; vertical-align: -3px; margin-right: 5px; }
 .curral-animal .chip { padding: 12px 16px; font-size: 16px; }
+
+/* 2.11 (etapa 6): tabela 3C × MD × as duas × fazenda top no Financeiro. Rótulo em cima, 4 números embaixo (cabe no celular). */
+.cmp { display: grid; gap: 0; }
+.cmp-cab, .cmp-l { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 8px; }
+.cmp-cab { padding: 4px 0 6px; font-size: 12.5px; font-weight: 700; color: var(--apagado); text-transform: uppercase; letter-spacing: .04em; background: var(--cartao); }
+.cmp-cab span, .cmp-v, .cmp-t { text-align: right; }
+.cmp-g { margin: 12px 0 2px; font-size: 13px; font-weight: 700; color: var(--acento); }
+.cmp-l { padding: 7px 0; border-top: 1px solid var(--linha); row-gap: 2px; }
+.cmp-n { grid-column: 1 / -1; font-size: 14px; color: var(--apagado); }
+.cmp-v { font-size: 15.5px; font-weight: 700; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.cmp-v.ok { color: var(--bom); } .cmp-v.atencao { color: var(--atencao); } .cmp-v.sem, .cmp-v.neutro { color: var(--apagado); font-weight: 500; }
+.cmp-t { font-size: 13.5px; color: var(--apagado); font-variant-numeric: tabular-nums; }
+.faltas { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 14.5px; line-height: 1.4; }
+.faltas .link { padding: 0; }

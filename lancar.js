@@ -553,6 +553,7 @@ document.addEventListener('click', (ev) => {
     return;
   }
   if (acao === 'l-sexo') return mexer((r) => { r.sexo = v; });
+  if (acao === 'l-item') return mexer((r) => { r.item = v; });
   if (acao === 'l-natimorto') return mexer((r) => { r.natimorto = !r.natimorto; });
   if (acao === 'l-causa') return mexer((r) => { r.causa = r.causa === v ? '' : v; });
   if (acao === 'l-tirar') return mexer((r) => { r.itens = (r.itens || []).filter((x) => x.a !== Number(v)); });
@@ -590,6 +591,8 @@ document.addEventListener('input', (ev) => {
     if (el.id === 'r-dose') r.dose = el.value;
     if (el.id === 'r-car') r.carTxt = el.value;
     if (el.id === 'r-num') r.num = el.value;
+    if (el.id === 'l-valor') r.valorTxt = el.value;
+    if (el.id === 'l-desc') r.desc = el.value;
   }, false);
   // atualiza só o pedaço que depende do que foi digitado
   const r = rasc(tipo);
@@ -604,6 +607,7 @@ document.addEventListener('input', (ev) => {
     if (tipo === 'morte' && a) { r.a = a.id; guardarRasc(tipo, r); }
   }
   if (el.id === 'r-num') $('#l-achado').innerHTML = animalAchado(acharAnimal(r.num), !r.num);
+  if (el.id === 'l-valor' && $('#l-divide')) $('#l-divide').textContent = textoDivisao(r);
   const btn = $('[data-acao="l-revisar"]');
   if (btn && PRONTO[tipo]) btn.disabled = !PRONTO[tipo](r);
   if (el.id === 'l-data') { const y = window.scrollY; desenhar(); window.scrollTo(0, y); }
