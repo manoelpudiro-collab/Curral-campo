@@ -491,3 +491,6 @@ button { font: inherit; color: inherit; }
 .faltas .link { padding: 0; }
 /* 2.12: botões do inseminador na IATF quebram linha (todos à vista no tronco) */
 .curral-ia .chips { flex-wrap: wrap; margin: 4px 0 8px; }
+
+/* venda (2.13): a conta aparece em linhas */
+.conta-venda { white-space: pre-line; color: var(--texto); background: var(--cartao, transparent); border-radius: 10px; padding: 8px 10px; }

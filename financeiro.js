@@ -122,7 +122,7 @@ const arred = (v) => (v == null ? null : Math.round(v * 10) / 10);
 function faltasFin(F0, tot) {
   const l = [];
   if (!tot.n_fixas) l.push(['Despesas da fazenda', 'nenhuma lançada (salário, diesel, energia, manutenção). Sem elas o gasto fica só com remédio, sal e protocolo.', '#lancar/despesa', 'Lançar despesa']);
-  if (!(Number(tot.receita) > 0)) l.push(['Vendas', 'nenhuma lançada. Venda de animais (peso, R$/@, comprador) é pela conversa com o Claude.']);
+  if (!(Number(tot.receita) > 0)) l.push(['Vendas', 'nenhuma lançada. Sem elas não sai margem nem desfrute.', '#lancar/venda', 'Lançar venda']);
   if (!tot.desm) l.push(['Desmama', 'nenhum bezerro pesado na desmama nos últimos 12 meses. Na pesagem, escolha “Desmama (apartação)”.']);
   if (Number(F0.dias) < 360) {
     l.push(['12 meses de gasto', `custo por cabeça no ano, por bezerro e por @ fecham com um ano inteiro de gasto anotado: a partir de ${dt(somarDias(F0.ini, 365))}.`]);

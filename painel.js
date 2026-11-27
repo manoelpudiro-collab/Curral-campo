@@ -717,6 +717,7 @@ function janelaLote(i) {
     ${dono() ? `<div class="botoes"><button class="botao" data-ir="#lancar/pesagem/lote-${o.lote}">${I.balanca}<span>Pesar o lote</span></button>
       <button class="botao" data-ir="#lancar/pasto/lote-${o.lote}">${I.pasto}<span>Mudar de pasto</span></button>
       <button class="botao" data-ir="#lancar/remedio/lote-${o.lote}">${I.saude}<span>Vacina ou remédio</span></button>
-      <button class="botao" data-ir="#lancar/salga/lote-${o.lote}">${I.peso}<span>Salga de cocho</span></button></div>`
+      <button class="botao" data-ir="#lancar/salga/lote-${o.lote}">${I.peso}<span>Salga de cocho</span></button>
+      <button class="botao" data-ir="#lancar/venda/lote-${o.lote}">${I.dinheiro}<span>Vender o lote</span></button></div>`
       : '<p class="nota">Mudou o gado de pasto? Avise pelo bot do Telegram: “novilhas foram para o pasto 5”.</p>'}`);
 }

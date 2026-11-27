@@ -205,10 +205,12 @@ function aplicarPre(tipo, r, pre) {
     if (a) {
       if (tipo === 'nascimento') r.mae = a.id; else if (tipo === 'morte') r.a = a.id; else if (tipo === 'pesagem') r.num = a.n;
       else if (tipo === 'remedio') { r.alvo = 'animais'; r.itens = [...new Set([...(r.itens || []), a.id])]; }
+      else if (tipo === 'venda') r.itens = [...new Set([...(r.itens || []), a.id])];
     }
   }
   if (r.lote && (tipo === 'pasto' || tipo === 'salga')) { const l = S.idx.lotes.get(r.lote); if (l) { r.f = l.f; r.pasto = null; } }
   if (r.lote && tipo === 'remedio') r.alvo = 'lote';
+  if (r.lote && tipo === 'venda') r.itens = [...new Set([...(r.itens || []), ...animaisDoLote(r.lote).map((x) => x.id)])];
   guardarRasc(tipo, r);
 }
 
@@ -628,6 +630,7 @@ function pendentesDoAnimal(a) {
     const d = x.dados || {};
     if (x.tipo === 'pesagem') for (const it of d.itens || []) { if (it.a === a.id) l.push({ d: d.data, t: `Pesagem${d.desmama ? ' da desmama' : ''} · ${kg(it.kg)}` }); }
     if (x.tipo === 'morte' && d.a === a.id) l.push({ d: d.data, t: `Morte${d.causa ? ` · ${d.causa}` : ''}` });
+    if (x.tipo === 'venda' && (d.itens || []).includes(a.id)) l.push({ d: d.data, t: `Venda · ${d.comprador || ''}` });
     if (x.tipo === 'nascimento' && d.mae === a.id) l.push({ d: d.data, t: `Pariu ${d.sexo === 'M' ? 'um bezerro' : 'uma bezerra'}` });
     if (x.tipo === 'remedio' && ((d.itens || []).includes(a.id) || (d.alvo === 'lote' && (a.lotes || []).includes(d.lote)))) {
       l.push({ d: d.data, t: `Vacina/remédio · ${d.nome || (prodPorId(d.prod) || {}).nome || ''}` });
