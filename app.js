@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.6 · 26/11/2026';
+const VERSAO_APP = '2.7 · 27/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -102,6 +102,7 @@ const I = {
   bezerro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9.5 7.6 14c0 3 2 5.5 4.4 5.5s4.4-2.5 4.4-5.5L16 9.5"/><path d="M8 9.5c-1.6 0-3-.8-3.6-2.2M16 9.5c1.6 0 3-.8 3.6-2.2M8 9.5c1-1.2 2.4-1.8 4-1.8s3 .6 4 1.8"/><circle cx="10" cy="12.5" r=".6" fill="currentColor"/><circle cx="14" cy="12.5" r=".6" fill="currentColor"/></svg>',
   touro: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4c.5 3 2.5 4.5 5 4.5h8c2.5 0 4.5-1.5 5-4.5"/><path d="M7.5 8.5 7 14c0 3 2 6 5 6s5-3 5-6l-.5-5.5"/><path d="M10 17h4"/><circle cx="9.5" cy="12" r=".6" fill="currentColor"/><circle cx="14.5" cy="12" r=".6" fill="currentColor"/></svg>',
   pasto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 20h18M6 20c0-4 1-7 3-9M12 20c0-5 0-8 1-11M18 20c0-4-1-6-3-8"/></svg>',
+  pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>',
 };
 
 // ------------------------------------------------------------------ estado
@@ -799,6 +800,7 @@ function telaMais() {
       <dt>Instalado na tela de início</dt><dd>${instalado() ? 'sim' : 'não'}</dd>
     </dl></div>
     ${instalado() ? '' : `<div class="dica"><b>Para funcionar sem internet</b><span>No Safari, toque em Compartilhar e depois em Adicionar à Tela de Início. Depois abra pelo ícone e entre de novo com um código.</span></div>`}
+    ${dono() ? `<button class="btn sec" data-ir="#relatorio">${I.pdf}Relatórios em PDF</button>` : ''}
     <button class="btn sec" data-acao="atualizar">Atualizar agora</button>
     <button class="btn perigo" data-acao="pedir-sair">Sair deste celular</button>
     <p class="nota">Sem internet, o app mostra a última cópia. Assim que pegar sinal, ele atualiza sozinho.</p>
@@ -839,12 +841,12 @@ function desenhar(mensagem) {
     return;
   }
   const r = rota();
-  if (!dono() && ['painel', 'lancar'].includes(r.nome)) r.arg = null, r.nome = 'inicio';
-  const telas = { inicio: telaInicioVaqueiro, pastos: telaPastosVaqueiro, painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais, lancar: () => telaLancar(r.arg) };
+  if (!dono() && ['painel', 'lancar', 'relatorio'].includes(r.nome)) r.arg = null, r.nome = 'inicio';
+  const telas = { inicio: telaInicioVaqueiro, pastos: telaPastosVaqueiro, painel: () => telaPainel(r.arg), mapa: () => telaMapa(r.arg), buscar: telaBuscar, listas: telaListas, lista: () => telaLista(r.arg), agenda: telaAgenda, animal: () => telaAnimal(r.arg), mais: telaMais, lancar: () => telaLancar(r.arg), relatorio: telaRelatorio };
   let abaGuardada = null;
   try { abaGuardada = sessionStorage.getItem('cd.aba'); } catch { /* nada */ }
-  const aba = r.nome === 'animal' ? (abaGuardada || 'buscar') : r.nome === 'lista' || r.nome === 'listas' ? 'buscar' : r.nome === 'mapa' || r.nome === 'inicio' || r.nome === 'pastos' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
-  if (r.nome !== 'animal') { try { sessionStorage.setItem('cd.aba', aba); } catch { /* nada */ } }
+  const aba = r.nome === 'animal' || r.nome === 'relatorio' ? (abaGuardada || (r.nome === 'animal' ? 'buscar' : 'mais')) : r.nome === 'lista' || r.nome === 'listas' ? 'buscar' : r.nome === 'mapa' || r.nome === 'inicio' || r.nome === 'pastos' ? 'painel' : telas[r.nome] ? r.nome : 'painel';
+  if (r.nome !== 'animal' && r.nome !== 'relatorio') { try { sessionStorage.setItem('cd.aba', aba); } catch { /* nada */ } }
   app.innerHTML = topo() + (telas[r.nome] || telas.painel)() + abas(aba);
   pintarCartoes(app); pintarBarras(app);
   const secAtual = app.querySelector('.secoes [aria-pressed="true"]');

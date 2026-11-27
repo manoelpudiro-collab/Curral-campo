@@ -184,7 +184,8 @@ function anel(rotulo, v, chave, neutro) {
 }
 const ATALHOS = [['rebanho', 'Rebanho', '#painel/rebanho'], ['repro', 'Reprodução', '#painel/reproducao'], ['peso', 'Desempenho', '#painel/desempenho'],
   ['pasto', 'Mapa e pastos', '#painel/campo'], ['agenda', 'Agenda', '#agenda'], ['listas', 'Listas', '#listas'],
-  ['dinheiro', 'Finanças', '#painel/financeiro'], ['busca', 'Buscar animal', '#buscar'], ['hist', 'Lançamentos', '#painel/geral-lanc']];
+  ['dinheiro', 'Finanças', '#painel/financeiro'], ['busca', 'Buscar animal', '#buscar'], ['hist', 'Lançamentos', '#painel/geral-lanc'],
+  ['pdf', 'Relatórios em PDF', '#relatorio']];
 function telaInicio() {
   const r = P1('resumo');
   const neutroP = Number(r.prenhas_ultimo_dg) > 0 && Number(r.prenhas_touro) >= Number(r.prenhas_ultimo_dg);
@@ -192,7 +193,7 @@ function telaInicio() {
   const fz = P('fazendas');
   const fazC = (cod, nome) => { const f = fz.find((x) => x.fazenda === cod) || {};
     return `<div class="faz-c"><small>${esc(nome)}</small><b>${esc(F.int(f.cabecas))}</b><span>${esc(F.int(f.nascimentos_12m))} nasc. · ${esc(F.int(f.mortes_12m))} mortes (12 m)</span></div>`; };
-  const at = ATALHOS.filter(([, , h]) => h !== '#painel/financeiro' || dono());
+  const at = ATALHOS.filter(([, , h]) => !['#painel/financeiro', '#relatorio'].includes(h) || dono());
   return `<section class="pagina">
     <div class="faixa"><h1>Fazendas MD e 3C</h1><p>${esc((S.usuario && S.usuario.nome) || '')} · ${esc(F.int(r.cabecas))} cabeças</p>
       <button class="busca-faixa" data-ir="#buscar">${I.busca}<span>Buscar animal pelo número</span></button></div>
@@ -205,7 +206,7 @@ function telaInicio() {
     <div class="kpis">${kpi('Cabeças', F.int(r.cabecas), `${esc(F.int(r.matrizes))} matrizes · ${esc(F.int(r.novilhas))} novilhas · ${esc(F.int(r.bezerros))} bezerros`)}
       ${dono() ? kpi('Resultado do ano', F.brl(r.resultado_ano), `gastos ${esc(F.brl(r.gasto_ano))}`) : kpi('Nascimentos · 12 meses', F.int(r.nascimentos_12m), '')}</div>
     <h2 class="titulo-secao">Painéis</h2>
-    <div class="botoes">${at.map(([ic, t, h]) => `<button class="botao" data-ir="${h}">${I[ic]}<span>${esc(t)}</span></button>`).join('')}</div>
+    <div class="botoes">${at.map(([ic, t, h], i) => `<button class="botao${i === at.length - 1 && at.length % 3 === 1 ? ' largo' : ''}" data-ir="${h}">${I[ic]}<span>${esc(t)}</span></button>`).join('')}</div>
     ${bloco('Próximos manejos', 'programados', `${linhasLista(P('agenda').slice(0, 4).map((a) => ({
       t: `${esc(NOME_ETAPA[a.etapa] || a.etapa)}${a.produto && a.produto !== 'IATF' ? ` · ${esc(a.produto)}` : ''}`,
       s: esc([a.fazenda, a.lote, a.n_animais ? `${a.n_animais} animais` : null].filter(Boolean).join(' · ')),
