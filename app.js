@@ -4,7 +4,7 @@
 'use strict';
 
 const API = 'https://cstwrcymyfqyrjekhcie.supabase.co/functions/v1/app-campo';
-const VERSAO_APP = '2.7 · 27/11/2026';
+const VERSAO_APP = '2.8 · 27/11/2026';
 const CH = { chave: 'cd.chave', copia: 'cd.copia', usuario: 'cd.usuario', quando: 'cd.atualizado', recentes: 'cd.recentes', fazenda: 'cd.fazenda' };
 const ATUALIZAR_APOS_MIN = 10;
 
@@ -132,7 +132,9 @@ function indexar(c) {
   const partos = new Map((c.partos || []).map((p) => [p.n, p]));
   const pastoDoLote = new Map();
   for (const o of (c.mapa ? c.mapa.ocupacoes : c.ocupacoes) || []) if (!o.sai && o.lote) pastoDoLote.set(o.lote, o);
-  return { porId, filhos, eventos, aplic, faz, lotes, pastos, prot, manejos, partos, pastoDoLote };
+  const insem = new Map();   // inseminações (sêmen, inseminador, resultado do DG) de cada fêmea (etapa 3)
+  for (const i of c.ins || []) empurrar(insem, i.a, i);
+  return { porId, filhos, eventos, aplic, faz, lotes, pastos, prot, manejos, partos, pastoDoLote, insem };
 }
 
 function carregar(copia, usuario, quando) {
@@ -508,8 +510,10 @@ function itensDoTempo(a) {
     if (x.m.prot) {
       const p = S.idx.prot.get(x.m.prot);
       const d = diaProt(p, x.data);
+      const ia = x.m.etapa === 'inseminacao' && !falhou ? (S.idx.insem.get(a.id) || []).find((i) => i.d === (x.apl || x.data)) : null;
       add(x.apl || x.data, falhou ? 'falhou' : 'prot', falhou ? 'x' : 'repro', nome + (falhou ? ' · não aplicado' : ''),
-        [p ? p.nome : null, d !== null ? rotuloDia(d) : null, x.dose || x.m.dose, x.obs].filter(Boolean).join(' · '));
+        [p ? p.nome : null, d !== null ? rotuloDia(d) : null, ia ? `sêmen ${ia.sem}` : null, ia && ia.ins ? `inseminador ${ia.ins}` : null,
+          x.dose || x.m.dose, x.obs].filter(Boolean).join(' · '));
     } else {
       add(x.apl || x.data, falhou ? 'falhou' : 'san', falhou ? 'x' : 'saude', nome + (falhou ? ' · não aplicado' : ''), [x.dose || x.m.dose, x.obs].filter(Boolean).join(' · '));
     }

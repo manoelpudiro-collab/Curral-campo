@@ -303,10 +303,88 @@ function secRebanho() {
     ${bloco('Mortes', 'últimos 12 meses', mortes)}`;
 }
 
+// ------------------------------------------------------------------ estação de monta (etapa 3), feita com a cópia do celular (sem internet)
+// Por protocolo: expostas (fêmeas que passaram pelo protocolo), inseminadas, DG, prenhas da IATF e do repasse (touro).
+// Concepção por sêmen e por inseminador; vazias depois da estação (candidatas a descarte, quem decide é o produtor).
+function estacaoDeMonta() {
+  const ins = S.dados.ins || [];
+  const h = hojeISO();
+  const prots = S.dados.protocolos.slice().sort((x, y) => (y.d0 || '').localeCompare(x.d0 || '')).map((p) => {
+    const ex = typeof expostasDo === 'function' ? expostasDo(p.id) : [];
+    const iaP = ins.filter((i) => i.prot === p.id);
+    const inseminadas = new Set(iaP.map((i) => i.a));
+    const iaPos = new Set(iaP.filter((i) => i.dg === 'positivo').map((i) => i.a));
+    const comDG = new Set(iaP.filter((i) => i.dg).map((i) => i.a));
+    // DG depois do D0 (+20 dias) de quem está no protocolo: positivo sem IATF positiva = prenhez do repasse (touro)
+    let repasse = 0, diag = 0;
+    for (const a of ex) {
+      const dgs = (S.idx.eventos.get(a.id) || []).filter((e) => e.t === 'diagnostico_gestacao' && p.d0 && diasEntre(p.d0, e.d) >= 20);
+      const u = dgs[dgs.length - 1];
+      if (u || comDG.has(a.id)) diag++;
+      if (u && u.dg === 'positivo' && !iaPos.has(a.id)) repasse++;
+    }
+    return { p, ex: ex.length, ins: inseminadas.size, dgIA: comDG.size, posIA: iaPos.size, repasse, diag };
+  });
+  const grupo = (campo) => {
+    const m = new Map();
+    for (const i of ins) {
+      if (!i.dg) continue;
+      const k = i[campo] || 'não informado';
+      const g = m.get(k) || { k, p: 0, t: 0 };
+      g.t++; if (i.dg === 'positivo') g.p++;
+      m.set(k, g);
+    }
+    return [...m.values()].sort((a, b) => b.t - a.t);
+  };
+  // vazias da estação: fêmea do rebanho cujo último DG deu vazia e foi depois do D0 de um protocolo em que ela estava
+  const d0De = new Map();
+  for (const x of S.dados.aplicacoes) {
+    const m = S.idx.manejos.get(x[0]);
+    const p = m && m.prot ? S.idx.prot.get(m.prot) : null;
+    if (p && p.d0 && (!d0De.get(x[1]) || p.d0 > d0De.get(x[1]))) d0De.set(x[1], p.d0);
+  }
+  const vazias = S.dados.animais.filter((a) => a.st === 'ativo' && a.s === 'F' && d0De.has(a.id)).map((a) => {
+    const u = ultimoDG(a);
+    return u && u.dg === 'negativo' && diasEntre(d0De.get(a.id), u.d) >= 20 ? { a, u } : null;
+  }).filter(Boolean).sort((x, y) => x.a.n.localeCompare(y.a.n, 'pt-BR', { numeric: true }));
+  // partos previstos por mês (do painel; 290 dias depois da concepção)
+  const porMes = new Map();
+  for (const pp of P('partos_previstos')) { const k = String(pp.parto_previsto || '').slice(0, 7); if (k) porMes.set(k, (porMes.get(k) || 0) + 1); }
+  return { prots, semen: grupo('sem'), insem: grupo('ins'), vazias, porMes: [...porMes].sort((a, b) => a[0].localeCompare(b[0])), h };
+}
+const MES_C = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const mesAno = (k) => `${MES_C[Number(k.slice(5, 7)) - 1]}/${k.slice(0, 4)}`;
+const pctE = (p, t) => (t ? F.pct(Math.round((1000 * p) / t) / 10) : '—');
+function blocosEstacao() {
+  const E = estacaoDeMonta();
+  const prots = linhasLista(E.prots.map((x) => ({
+    t: `${esc(x.p.nome)} <small>${esc(faz(x.p.f).codigo)}</small>`,
+    s: esc([`${F.int(x.ex)} expostas`, `${F.int(x.ins)} inseminadas`, x.diag ? `${F.int(x.diag)} com DG` : 'DG ainda não feito',
+      x.posIA || x.repasse ? `${F.int(x.posIA)} prenhas da IATF${x.repasse ? ` + ${F.int(x.repasse)} do repasse` : ''}` : null].filter(Boolean).join(' · ')),
+    v: x.dgIA ? `${esc(pctE(x.posIA, x.dgIA))}<small>concepção IATF</small>`
+      : x.diag ? `${esc(pctE(x.posIA + x.repasse, x.diag))}<small>prenhez</small>` : x.ins ? '<small>esperando DG</small>' : '',
+  })), 'Nenhum protocolo.');
+  const tabela = (l, rot) => linhasLista(l.map((g) => ({ t: esc(g.k), s: esc(`${F.int(g.p)} ${g.p === 1 ? 'prenha' : 'prenhas'} de ${F.int(g.t)} com DG`), v: `${esc(pctE(g.p, g.t))}<small>${rot}</small>` })),
+    'Aparece depois do DG das inseminadas.');
+  const vaz = linhasLista(E.vazias.map(({ a, u }) => ({
+    t: `${esc(a.n)} <small>${esc(faz(a.f).codigo)}</small>`, s: esc([NOME_CAT[a.c] || a.c, `vazia no DG de ${dtc(u.d)}`].join(' · ')),
+    v: '', ir: `#animal/${a.id}`,
+  })), 'Nenhuma vazia depois do DG da estação.');
+  const meses = linhasLista(E.porMes.map(([k, n]) => ({ t: esc(mesAno(k)), s: '', v: `${esc(F.int(n))}<small>${n === 1 ? 'parto' : 'partos'}</small>` })),
+    'Ainda não há parto previsto.');
+  return `${bloco('Estação de monta', 'por protocolo', `${prots}<p class="nota">Expostas = fêmeas que entraram no protocolo. Concepção da IATF = prenhas da IATF sobre as inseminadas com DG. Repasse = prenha no DG sem ser da IATF (touro).</p>`)}
+    ${bloco('Concepção por sêmen', 'IATF com DG', tabela(E.semen, 'concepção'))}
+    ${bloco('Concepção por inseminador', 'IATF com DG', tabela(E.insem, 'concepção'))}
+    ${bloco('Vazias depois da estação', 'candidatas a descarte', `${vaz}<p class="nota">Último DG deu vazia, feito 20 dias ou mais depois do D0 do protocolo dela. Quem decide o descarte é você.</p>`)}
+    ${bloco('Partos previstos por mês', '290 dias depois da concepção', meses)}`;
+}
+
 function secReproducao() {
   const r = P1('resumo');
   const emProt = S.dados.animais.filter((a) => a.st === 'ativo' && proximaEtapa(a)).length;
-  const insem = P('protocolos').reduce((s, p) => s + (Number(p.inseminadas) || 0), 0);
+  // inseminadas: pela cópia do celular quando ela traz as inseminações (024), senão pelo painel
+  const insem = S.dados.ins ? new Set(S.dados.ins.filter((i) => i.prot).map((i) => `${i.prot}|${i.a}`)).size
+    : P('protocolos').reduce((s, p) => s + (Number(p.inseminadas) || 0), 0);
   const kpis = [
     kpiPrenhez(r, true),
     kpi('Fêmeas em protocolo de IATF', F.int(emProt), 'somando todos os protocolos'),
@@ -334,6 +412,7 @@ function secReproducao() {
     v: `${esc(dt(p.parto_previsto))}<small>${esc(relativo(p.parto_previsto))}</small>`, ir: idDoNumero(p.numero) ? `#animal/${idDoNumero(p.numero)}` : null,
   })), 'Ainda não há parto previsto: a previsão aparece depois da inseminação ou do diagnóstico com idade da gestação.');
   return `<div class="kpis">${kpis.join('')}</div>
+    ${blocosEstacao()}
     ${bloco('Situação das fêmeas', 'matrizes e novilhas, fora do lote de abate', `${porFaz}${legenda(sits.map((s) => ({ rot: NOME_SIT[s] || s, c: corP('situacao', s) })))}`)}
     ${bloco('Protocolos de IATF', 'andamento e resultado', `${prots}<p class="nota">A concepção aparece depois do diagnóstico de gestação das inseminadas. Referência das fazendas top: cerca de 83% de prenhez na estação.</p>`)}
     ${custo}

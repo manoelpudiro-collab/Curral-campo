@@ -2,7 +2,8 @@
 // Escolhe o manejo do dia (ex.: D8 da IATF das novilhas), passa animal por animal pelo número, marca o que foi feito em
 // cada um (e o peso, se pesar junto) e no fim mostra o resumo para o "Confirmar". Funciona sem internet: a sessão inteira
 // fica guardada no celular (rascunho) e vai para o sistema como um lançamento só, quando pegar sinal.
-// Animal fora do protocolo não entra (pôr no protocolo é pela conversa com o Claude). Diagnóstico de gestação fica de fora.
+// Animal fora do protocolo não entra (pôr no protocolo é pela conversa com o Claude). Diagnóstico de gestação tem tela própria (dg.js).
+// Dia da IATF (etapa 3): a sessão pede o sêmen (ou touro) e o inseminador; vale para todas, e cada vaca pode levar outro sêmen.
 'use strict';
 
 const ORDEM_ETAPA = ['inducao', 'implante', 'retirada_implante', 'cipionato', 'prostaglandina', 'eCG', 'aplicacao', 'inseminacao', 'repasse', 'outro'];
@@ -67,6 +68,23 @@ function linhasDo(a, r) {
 function noProtocolo(a, r) {
   return (S.idx.aplic.get(a.id) || []).some((x) => r.mjs.includes(x.m.id) || (r.prot && x.m.prot === r.prot));
 }
+// IATF na sessão: sêmen e inseminador (sugestões = os já usados e os sêmens do cadastro de produtos)
+const idIA = (r) => (r.on || []).find((id) => (S.idx.manejos.get(id) || {}).etapa === 'inseminacao') || null;
+function sugestoesIA() {
+  const sem = new Set((S.dados.produtos || []).filter((p) => p.cat === 'semen').map((p) => p.nome));
+  const ins = new Set();
+  for (const i of S.dados.ins || []) { if (i.sem) sem.add(i.sem); if (i.ins) ins.add(i.ins); }
+  const op = (l) => [...l].sort((x, y) => x.localeCompare(y, 'pt-BR')).map((v) => `<option value="${esc(v)}">`).join('');
+  return `<datalist id="c-sem-lista">${op(sem)}</datalist><datalist id="c-ins-lista">${op(ins)}</datalist>`;
+}
+function campoIA(r) {
+  if (!idIA(r)) return '';
+  return `<div class="bloco curral-ia"><h2 class="h2">${I.repro}Inseminação</h2>
+    <label class="campo"><span>Sêmen (ou touro) desta sessão</span><input id="c-sem-s" list="c-sem-lista" autocomplete="off" autocapitalize="characters"
+      enterkeyhint="next" value="${esc(r.semS || '')}" placeholder="nome do touro do sêmen"></label>
+    <label class="campo"><span>Inseminador</span><input id="c-ins-s" list="c-ins-lista" autocomplete="off" enterkeyhint="done" value="${esc(r.insS || '')}" placeholder="quem inseminou"></label>
+    <p class="nota">Vale para todas. Se uma vaca levar outro sêmen, mude no cartão dela.</p>${sugestoesIA()}</div>`;
+}
 const padraoDo = (a, r) => { const st = linhasDo(a, r); return r.on.filter((id) => st.get(id) === 'previsto'); };
 function naFila(id, r) {
   return fila().some((x) => x.tipo === 'curral' && (x.dados.manejos || []).some((m) => r.on.includes(m)) && (x.dados.itens || []).some((it) => it.a === id));
@@ -115,6 +133,7 @@ FORMS.curral = function (r) {
       ${mjs.map((m) => `<button class="chip" data-acao="c-sessao" data-valor="${m.id}" aria-pressed="${r.on.includes(m.id)}" ${itens.length ? 'disabled' : ''}>${esc(nomes.get(m.id))}</button>`).join('')}
       <button class="chip" data-acao="c-pesar" aria-pressed="${!!r.pesar}">${I.balanca}Pesar também</button></div>
       ${fora.length ? `<p class="nota aviso-t">Fora desta sessão (continua prevista): ${esc(fora.map(nomeEtapaC).join(', '))}</p>` : ''}</div>
+    ${campoIA(r)}
     <div class="curral-conta"><span><b>${itens.length}</b> ${itens.length === 1 ? 'passou' : 'passaram'}</span>
       <span>faltam <b>${faltam.length}</b>${faltam.length ? ` <button class="link" data-acao="c-faltam">${r.verFaltam ? 'esconder' : 'ver'}</button>` : ''}</span></div>
     ${r.verFaltam && faltam.length ? `<p class="nota">${esc(faltam.map((a) => a.n).join(', '))}</p>` : ''}
@@ -125,7 +144,8 @@ FORMS.curral = function (r) {
       const a = S.idx.porId.get(x.a);
       const nao = (x.n || []).map((id) => nomes.get(id)).filter(Boolean);
       return `<div class="item item-fixo"><span><span class="item-t">${esc(a ? a.n : '?')} · ${x.m.length} de ${r.on.length} etapas${x.kg ? ` · ${esc(kg(x.kg))}` : ''}</span>
-        <span class="item-m${nao.length || x.aviso ? ' aviso-t' : ''}">${esc([nao.length ? `⚠️ não fez: ${nao.join(', ')}` : null, x.aviso ? `⚠️ ${x.aviso}` : null, x.obs].filter(Boolean).join(' · ') || (a ? resumo(a) : ''))}</span></span>
+        <span class="item-m${nao.length || x.aviso ? ' aviso-t' : ''}">${esc([nao.length ? `⚠️ não fez: ${nao.join(', ')}` : null, x.aviso ? `⚠️ ${x.aviso}` : null,
+          x.ia ? `sêmen ${x.ia.sem}` : null, x.obs].filter(Boolean).join(' · ') || (a ? resumo(a) : ''))}</span></span>
         ${r.editando === x.a ? '<span class="acoes-item"><b class="aviso-t">✏️ corrigindo</b></span>'
           : `<span class="acoes-item"><button class="link" data-acao="c-corrigir" data-valor="${x.a}">corrigir</button>
         <button class="link perigo-t" data-acao="c-tirar" data-valor="${x.a}">tirar</button></span>`}</div>`; }).join('')}</div></div>` : ''}
@@ -161,6 +181,8 @@ function cartaoCurral(r) {
     <p class="achado sim"><b>${esc(a.n)}</b> · ${esc(resumo(a))}</p>
     <div class="chips quebra">${chips}</div>
     <p class="nota">${nSel === abertas.length ? 'Todas as etapas feitas. Se alguma não foi feita, toque nela para desmarcar.' : `⚠️ ${abertas.length - nSel} etapa(s) desmarcada(s): vai como não feita.`}</p>
+    ${idIA(r) && sel.includes(idIA(r)) && abertas.includes(idIA(r)) ? `<label class="campo"><span>Sêmen desta vaca</span><input id="c-sem" list="c-sem-lista"
+      autocomplete="off" autocapitalize="characters" enterkeyhint="done" value="${esc(r.semA != null ? r.semA : r.semS || '')}" placeholder="sêmen (ou touro)"></label>` : ''}
     ${r.pesar ? `<label class="campo"><span>Peso (kg)</span><input id="c-kg" inputmode="decimal" autocomplete="off" enterkeyhint="done" value="${esc(r.kgTxt || '')}" placeholder="kg"></label>` : ''}
     <label class="campo"><span>Observação</span><input id="c-obs" autocomplete="off" enterkeyhint="done" value="${esc(r.obsTxt || '')}" placeholder="opcional (ex.: perdeu o implante)"></label>
     <button class="btn" data-acao="c-add">${I.ok}${corrigindo ? 'Pronto · guardar a correção' : 'Pronto · próximo'}</button></div>`;
@@ -175,6 +197,14 @@ MONTAR.curral = function (r) {
   for (const m of mjs) {
     const c = itens.filter((x) => x.m.includes(m.id)).length;
     linhas.push(`${nomeEtapaC(m)}: ${c} ${c === 1 ? 'animal' : 'animais'}`);
+  }
+  const comIA = itens.filter((x) => x.ia && x.m.includes(idIA(r)));
+  if (comIA.length) {
+    const porSem = new Map(), porIns = new Map();
+    for (const x of comIA) { porSem.set(x.ia.sem, (porSem.get(x.ia.sem) || 0) + 1); const k = x.ia.ins || 'não informado'; porIns.set(k, (porIns.get(k) || 0) + 1); }
+    for (const [k, n] of porSem) linhas.push(`Sêmen ${k}: ${n} ${n === 1 ? 'vaca' : 'vacas'}`);
+    linhas.push(`Inseminador: ${[...porIns].map(([k, n]) => (porIns.size > 1 ? `${k} (${n})` : k)).join(', ')}`);
+    if (porIns.has('não informado')) linhas.push('⚠️ Inseminador não informado: o resultado por inseminador fica sem essas.');
   }
   for (const x of itens) {
     const nao = x.n.map((id) => nomeEtapaC(S.idx.manejos.get(id)));
@@ -192,7 +222,8 @@ MONTAR.curral = function (r) {
   if (faltam.length) linhas.push(`Não passaram (${faltam.length}): ${faltam.map((a) => a.n).join(', ')}. Ficam como previstas.`);
   if (r.prev && Math.abs(diasEntre(r.prev, r.data)) > 2) linhas.push(`⚠️ Previsto para ${dtc(r.prev)}, lançado em ${dtc(r.data)}.`);
   return {
-    dados: { data: r.data, manejos: r.on, itens: itens.map((x) => ({ a: x.a, m: x.m, n: x.n, ...(x.kg ? { kg: x.kg } : {}), ...(x.obs ? { obs: x.obs } : {}) })) },
+    dados: { data: r.data, manejos: r.on, itens: itens.map((x) => ({ a: x.a, m: x.m, n: x.n, ...(x.kg ? { kg: x.kg } : {}), ...(x.obs ? { obs: x.obs } : {}),
+      ...(x.ia && x.m.includes(idIA(r)) ? { ia: x.ia } : {}) })) },
     resumo: `Curral ${dtc(r.data)}: ${titulo} · ${itens.length} ${itens.length === 1 ? 'animal' : 'animais'}`,
     linhas,
     total: `${itens.length} ${itens.length === 1 ? 'animal passou' : 'animais passaram'}${faltam.length ? ` · ${faltam.length} não passaram` : ''}`,
@@ -218,9 +249,15 @@ function curralPorNaLista(r) {
     pkg = Math.round(pkg * 10) / 10;
   }
   if (!m.length && !n.length && !pkg) { avisar('Nada para lançar nesse animal.'); return false; }
-  const novo = { a: a.id, m, n, ...(pkg ? { kg: pkg, aviso: avisoPeso(a, pkg, r.data) } : {}), ...((r.obsTxt || '').trim() ? { obs: r.obsTxt.trim() } : {}) };
+  let ia = null;
+  if (idIA(r) && m.includes(idIA(r))) {
+    const sem = String(r.semA != null ? r.semA : r.semS || '').trim().toUpperCase();
+    if (!sem) { avisar('Falta o sêmen (ou o touro). Escreva lá em cima, em Inseminação, ou no cartão da vaca.'); return false; }
+    ia = { sem, ...((r.insS || '').trim() ? { ins: r.insS.trim() } : {}) };
+  }
+  const novo = { a: a.id, m, n, ...(pkg ? { kg: pkg, aviso: avisoPeso(a, pkg, r.data) } : {}), ...((r.obsTxt || '').trim() ? { obs: r.obsTxt.trim() } : {}), ...(ia ? { ia } : {}) };
   r.itens = corrigindo ? r.itens.map((x) => (x.a === a.id ? novo : x)) : [...(r.itens || []), novo];
-  r.num = ''; r.kgTxt = ''; r.obsTxt = ''; r.sel = null; r.editando = null;
+  r.num = ''; r.kgTxt = ''; r.obsTxt = ''; r.sel = null; r.editando = null; delete r.semA;
   return true;
 }
 
@@ -297,6 +334,7 @@ document.addEventListener('click', (ev) => {
       // o animal fica na lista; o cartão abre com o que estava marcado (as não feitas ficam desmarcadas)
       r.editando = a.id;
       r.num = a.n; r.sel = { a: a.id, m: x.m }; r.kgTxt = x.kg ? String(x.kg).replace('.', ',') : ''; r.obsTxt = x.obs || '';
+      if (x.ia) r.semA = x.ia.sem; else delete r.semA;
       if (x.kg) r.pesar = true;
     });
     setTimeout(() => { $('#c-num')?.scrollIntoView({ block: 'center' }); }, 30);
@@ -307,7 +345,10 @@ document.addEventListener('input', (ev) => {
   const el = ev.target;
   if (!el.id || !el.id.startsWith('c-') || tipoAtual() !== 'curral') return;
   mexer((r) => {
-    if (el.id === 'c-num') { r.num = el.value; r.sel = null; }
+    if (el.id === 'c-num') { r.num = el.value; r.sel = null; delete r.semA; }
+    if (el.id === 'c-sem-s') r.semS = el.value;
+    if (el.id === 'c-ins-s') r.insS = el.value;
+    if (el.id === 'c-sem') r.semA = el.value;
     if (el.id === 'c-kg') r.kgTxt = el.value;
     if (el.id === 'c-obs') r.obsTxt = el.value;
   }, false);
@@ -317,6 +358,8 @@ document.addEventListener('input', (ev) => {
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Enter' || !ev.target.id || !ev.target.id.startsWith('c-') || tipoAtual() !== 'curral') return;
   ev.preventDefault();
+  if (ev.target.id === 'c-sem-s') { $('#c-ins-s')?.focus(); return; }
+  if (ev.target.id === 'c-ins-s') { ev.target.blur(); return; }
   const r = rasc('curral');
   if (ev.target.id === 'c-num' && r.pesar && $('#c-kg')) { $('#c-kg').focus(); return; }
   const add = $('[data-acao="c-add"]');

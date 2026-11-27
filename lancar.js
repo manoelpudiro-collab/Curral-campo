@@ -15,8 +15,9 @@ const TIPOS_L = {
   remedio: { t: 'Vacina ou remédio', ic: 'saude' },
   salga: { t: 'Salga de cocho', ic: 'peso' },
   curral: { t: 'Modo Curral', ic: 'curral' },
+  dg: { t: 'Diagnóstico de gestação', ic: 'repro' },
 };
-const BREVE_L = [['repro', 'Diagnóstico de gestação']];
+const BREVE_L = [];
 const CAT_REMEDIO = ['vacina', 'vermifugo', 'carrapaticida', 'antibiotico', 'anti_inflamatorio', 'vitamina', 'outro'];
 const CAT_SAL = ['sal_mineral', 'suplemento', 'racao'];
 const MOTIVOS = ['Vacinação', 'Vermifugação', 'Carrapato e mosca', 'Tratamento (doente)', 'Bicheira'];
@@ -604,7 +605,7 @@ document.addEventListener('input', (ev) => {
 });
 document.addEventListener('keydown', (ev) => {
   if (ev.key !== 'Enter' || !ev.target.closest || !ev.target.closest('.form-lancar')) return;
-  if ((ev.target.id || '').startsWith('c-')) return;   // modo Curral cuida do Enter dele (curral.js)
+  if (/^[cg]-/.test(ev.target.id || '')) return;   // modo Curral e DG cuidam do Enter deles (curral.js, dg.js)
   if (ev.target.id === 'r-num') { ev.preventDefault(); $('[data-acao="l-rem-add"]').click(); return; }
   if (ev.target.id === 'l-num' && $('#l-kg')) { ev.preventDefault(); $('#l-kg').focus(); return; }
   if (ev.target.id === 'l-kg') { ev.preventDefault(); $('[data-acao="l-add"]').click(); return; }
@@ -623,7 +624,10 @@ function pendentesDoAnimal(a) {
       l.push({ d: d.data, t: `Vacina/remédio · ${d.nome || (prodPorId(d.prod) || {}).nome || ''}` });
     }
     if (x.tipo === 'curral') for (const it of d.itens || []) {
-      if (it.a === a.id) l.push({ d: d.data, t: `Curral · ${(it.m || []).length} etapa(s) feita(s)${it.kg ? ` · ${kg(it.kg)}` : ''}` });
+      if (it.a === a.id) l.push({ d: d.data, t: `Curral · ${(it.m || []).length} etapa(s) feita(s)${it.ia ? ` · sêmen ${it.ia.sem}` : ''}${it.kg ? ` · ${kg(it.kg)}` : ''}` });
+    }
+    if (x.tipo === 'dg') for (const it of d.itens || []) {
+      if (it.a === a.id) l.push({ d: d.data, t: `Diagnóstico de gestação · ${it.r === 'p' ? 'prenha' : 'vazia'}` });
     }
   }
   return l.map((x) => ({ ...x, tipo: 'fila', ic: 'atualizar', s: 'esperando envio (está guardado no celular)' }));
