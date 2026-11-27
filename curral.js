@@ -2,7 +2,7 @@
 // Escolhe o manejo do dia (ex.: D8 da IATF das novilhas), passa animal por animal pelo número, marca o que foi feito em
 // cada um (e o peso, se pesar junto) e no fim mostra o resumo para o "Confirmar". Funciona sem internet: a sessão inteira
 // fica guardada no celular (rascunho) e vai para o sistema como um lançamento só, quando pegar sinal.
-// Animal fora do protocolo não entra (pôr no protocolo é pela conversa com o Claude). Diagnóstico de gestação tem tela própria (dg.js).
+// Animal fora do protocolo não entra (pôr no protocolo é pelo D0 da IATF, d0.js). Diagnóstico de gestação tem tela própria (dg.js).
 // Dia da IATF (etapa 3): a sessão pede o sêmen (ou touro) e o inseminador; vale para todas, e cada vaca pode levar outro sêmen.
 'use strict';
 
@@ -120,11 +120,13 @@ FORMS.curral = function (r) {
         <b>${esc(tituloGrupo(g))}</b>
         <small>${esc(faz(g.f).codigo)} · ${esc(dt(g.prev))} (${esc(relativo(g.prev))})</small>
         <small>${esc(g.mjs.map(nomeEtapaC).join(', '))}</small>
-        <small>${g.pend ? `${g.pend} ${g.pend === 1 ? 'animal' : 'animais'} por fazer` : 'nenhum animal no protocolo ainda: o D0 é pela conversa com o Claude'}</small></button>`;
+        <small>${g.pend ? `${g.pend} ${g.pend === 1 ? 'animal' : 'animais'} por fazer` : 'nenhum animal no protocolo ainda: use D0 da IATF (acima)'}</small></button>`;
     return `${cabForm('curral')}
       <p class="nota">Escolha o manejo. Depois é só digitar o número de cada animal que passar no tronco. Funciona sem internet.</p>
       ${avisoCopiaVelha()}
-      <div class="opcoes"><button class="opcao" data-ir="#lancar/desmama"><b>Desmama (apartação)</b>
+      <div class="opcoes"><button class="opcao" data-ir="#lancar/d0"><b>D0 da IATF (pôr no protocolo)</b>
+        <small>protocolo novo (ex.: 2ª IATF das vazias) ou mais animais num que já começou: o que tomou, ECC, ultrassom</small></button>
+        <button class="opcao" data-ir="#lancar/desmama"><b>Desmama (apartação)</b>
         <small>bezerro por bezerro pelo número da mãe: peso, brinco novo, lote; a vaca passa a solteira</small></button></div>
       ${perto.length ? `<div class="opcoes">${perto.map(item).join('')}</div>` : '<p class="vazio">Nenhum manejo previsto para estes dias.</p>'}
       ${longe.length ? `<details class="tempo-mais"><summary>Outros manejos previstos (${longe.length})</summary><div class="opcoes">${longe.map(item).join('')}</div></details>` : ''}`;
@@ -179,7 +181,7 @@ function cartaoCurral(r) {
     return `<p class="achado aviso-t">A ${esc(a.n)} já passou nesta sessão. <button class="link" data-acao="c-corrigir" data-valor="${a.id}">corrigir</button></p>`;
   }
   if (naFila(a.id, r)) return `<p class="achado aviso-t">A ${esc(a.n)} já foi lançada numa sessão que está esperando envio.</p>`;
-  if (!noProtocolo(a, r)) return `<p class="achado nao">A ${esc(a.n)} não está neste protocolo. Pôr no protocolo é pela conversa com o Claude.</p>`;
+  if (!noProtocolo(a, r)) return `<p class="achado nao">A ${esc(a.n)} não está neste protocolo. Para pôr no protocolo, use Manejo › D0 da IATF.</p>`;
   const st = linhasDo(a, r);
   const abertas = r.on.filter((id) => st.get(id) !== 'aplicado');
   if (!abertas.length && !r.pesar) return `<p class="achado aviso-t">A ${esc(a.n)} já tem essas etapas lançadas.</p>`;
